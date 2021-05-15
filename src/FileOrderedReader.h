@@ -18,7 +18,6 @@ class FileOrderedReader {
 public:
 	FileOrderedReader(std::string input, bool debug = false);
 	~FileOrderedReader() = default;
-	FileOrderedReader(const FileOrderedReader&) = default;
 	FileOrderedReader(FileOrderedReader&&) = default;
 	std::unique_ptr<std::list<int>> getNextOrderedTransaction();
 
@@ -27,6 +26,7 @@ private:
 	std::map<int, int> _frequencies;
 	const bool _debug;
 
+	FileOrderedReader(const FileOrderedReader&) = default;
 	void computeFrequencies();
 };
 

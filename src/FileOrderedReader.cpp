@@ -45,7 +45,7 @@ unique_ptr<list<int>> FileOrderedReader::getNextOrderedTransaction() {
 	if (this->_debug) {
 		ostringstream str;
 		copy(itemset->begin(), itemset->end(), ostream_iterator<int>(str, " "));
-		BOOST_LOG_TRIVIAL(debug) << str.str();
+		BOOST_LOG_TRIVIAL(debug) << "Read ordered itemset: " << str.str();
 	}
 	return itemset;
 }

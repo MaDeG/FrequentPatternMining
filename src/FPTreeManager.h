@@ -7,16 +7,20 @@
 template <typename T>
 class FPTreeManager {
 public:
-	FPTreeManager(FileOrderedReader& fileOrderedReader);
-	const FPTreeNode<T>& getRoot() const;
-	const std::map<T, std::shared_ptr<FPTreeNode<T>>>& getHeaderTable();
+	FPTreeManager(FileOrderedReader& reader, double supportFraction);
+	FPTreeManager(const FPTreeManager<T>& manager);
+	FPTreeManager(FPTreeManager<T>&& manager) = default;
+	~FPTreeManager() = default;
+	const std::shared_ptr<FPTreeNode<T>> getRoot() const;
+	const std::map<T, std::shared_ptr<FPTreeNode<T>>>& getHeaderTable() const;
+	const int getSupportCount() const;
 
 private:
-	FileOrderedReader& _fileOrderedReader;
-	FPTreeNode<T> _root;
+	std::shared_ptr<FPTreeNode<T>> _root;
 	std::map<T, std::shared_ptr<FPTreeNode<T>>> _headerTable;
+	int _supportCount;
 
-	void generateFPTree();
+	void generateFPTree(FileOrderedReader& reader, double supportFraction);
 };
 
 template class FPTreeManager<int>;
