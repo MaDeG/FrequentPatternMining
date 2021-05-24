@@ -19,7 +19,7 @@ public:
 	const T& getValue() const;
 	int getFrequency() const;
 	const std::shared_ptr<FPTreeNode<T>> getNext() const;
-	const std::shared_ptr<FPTreeNode<T>> getParent() const;
+	const std::weak_ptr<FPTreeNode<T>> getParent() const;
 	void incrementFrequency();
 	void incrementFrequency(const int addend);
 	void setNext(std::shared_ptr<FPTreeNode<T>> next);
@@ -30,7 +30,7 @@ private:
 	static bool nodeComparator(const std::shared_ptr<FPTreeNode<T>>& a, const std::shared_ptr<FPTreeNode<T>>& b);
 	T value;
 	int frequency;
-	std::shared_ptr<FPTreeNode<T>> parent;
+	std::weak_ptr<FPTreeNode<T>> parent;
 	std::shared_ptr<FPTreeNode<T>> next;
 	std::set<std::shared_ptr<FPTreeNode<T>>, decltype(FPTreeNode<T>::nodeComparator)*> children;
 

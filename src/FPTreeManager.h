@@ -1,6 +1,7 @@
 #ifndef FREQUENTPATTERNMINING_FPTREEMANAGER_H
 #define FREQUENTPATTERNMINING_FPTREEMANAGER_H
 
+#include <memory>
 #include "FileOrderedReader.h"
 #include "HeaderTable.h"
 
@@ -23,6 +24,7 @@ public:
 	const int getSupportCount() const;
 	std::unique_ptr<FPTreeManager<T>> getPrefixTree(const T& item) const;
 	void pruneInfrequent();
+	std::shared_ptr<FPTreeNode<T>> removeItem(const T& item);
 	operator std::string() const;
 
 private:
@@ -33,6 +35,7 @@ private:
 
 	FPTreeManager(const bool debug);
 	void generateFPTree(FileOrderedReader& reader, double supportFraction);
+	void deleteItem(std::shared_ptr<FPTreeNode<T>> node);
 };
 
 template class FPTreeManager<int>;

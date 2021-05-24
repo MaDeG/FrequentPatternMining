@@ -33,7 +33,7 @@ const shared_ptr<FPTreeNode<T>> FPTreeNode<T>::getNext() const {
 }
 
 template <typename T>
-const shared_ptr<FPTreeNode<T>> FPTreeNode<T>::getParent() const {
+const weak_ptr<FPTreeNode<T>> FPTreeNode<T>::getParent() const {
 	return this->parent;
 }
 

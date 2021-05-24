@@ -49,8 +49,10 @@ int main(int argc, char *argv[]) {
 	}
 	supportFraction /= 100;
 
+	BOOST_LOG_TRIVIAL(info) << "Reading input file and computing item frequencies...";
 	FileOrderedReader reader(input, debug);
 
+	BOOST_LOG_TRIVIAL(info) << "Computing Frequent Itemsets with support bigger than " << supportFraction * 100 << "%...";
 	FPTreeManager<int> manager(reader, supportFraction, debug);
 	if (debug) {
 		const shared_ptr<FPTreeNode<int>> root = manager.getRoot();

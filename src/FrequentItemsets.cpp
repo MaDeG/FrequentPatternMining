@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <sstream>
 #include <boost/log/trivial.hpp>
 #include "FrequentItemsets.h"
 
@@ -30,19 +31,18 @@ unique_ptr<list<list<T>>> FrequentItemsets<T>::computeFrequentItemsets(unique_pt
 		const T& item = it->first;
 		BOOST_LOG_TRIVIAL(debug) << "Prefix element: " << item;
 		unique_ptr<FPTreeManager<T>> prefixManager = manager->getPrefixTree(item);
-		shared_ptr<FPTreeNode<T>> firstItemNode = prefixManager->headerTable.removeNode(item);
-		this->recomputeSupport(firstItemNode, prefixManager->headerTable);
+		shared_ptr<FPTreeNode<T>> firstItemNode = prefixManager->removeItem(item);
+		// After recomputing support we will not need the chosen prefix's nodes anymore
+		this->recomputeSupport(move(firstItemNode), prefixManager->headerTable);
 		BOOST_LOG_TRIVIAL(debug) << "Prefix tree with support recomputed: " << endl << *prefixManager;
 		unique_ptr<list<list<T>>> partialFrequentItemsets = move(this->computeFrequentItemsets(move(prefixManager)));
 		// Prepend the current element to the results found
 		for (list<T>& partialItemset : *partialFrequentItemsets) {
 			partialItemset.push_front(item);
 			if (this->debug) {
-				string out;
-				for (T& i : partialItemset) {
-					out.append(to_string(i) + " ");
-				}
-				BOOST_LOG_TRIVIAL(debug) << out;
+				ostringstream out;
+				copy(partialItemset.cbegin(), partialItemset.cend(), ostream_iterator<int>(out, " "));
+				BOOST_LOG_TRIVIAL(debug) << out.str();
 			}
 		}
 		// Move partial result to the final result
@@ -61,7 +61,7 @@ void FrequentItemsets<T>::recomputeSupport(shared_ptr<FPTreeNode<T>> node, Heade
 		}
 		assert(frequency > 0);
 		// Walk to the root and recompute frequencies
-		for (shared_ptr<FPTreeNode<T>> i = node->getParent(); i->getFrequency() >= 0; i = i->getParent()) {
+		for (shared_ptr<FPTreeNode<T>> i = node->getParent().lock(); i->getFrequency() >= 0; i = i->getParent().lock()) {
 			i->incrementFrequency(frequency);
 			// Increment the total frequency for these items
 			headerTable.increaseFrequency(i->getValue(), frequency);

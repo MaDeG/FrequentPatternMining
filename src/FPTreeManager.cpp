@@ -46,7 +46,20 @@ unique_ptr<FPTreeManager<T>> FPTreeManager<T>::getPrefixTree(const T& item) cons
 
 template <typename T>
 void FPTreeManager<T>::pruneInfrequent() {
+	for (typename map<T, HeaderEntry<T>>::const_iterator it = this->headerTable.cbegin(); it != this->headerTable.cend(); it++) {
+		if (it->second.getTotalFrequency() < this->supportCount) {
+			this->deleteItem(it->second.getNode());
+		}
+	}
 	this->headerTable.pruneInfrequent(this->supportCount);
+}
+
+template <typename T>
+shared_ptr<FPTreeNode<T>> FPTreeManager<T>::removeItem(const T& item) {
+	shared_ptr<FPTreeNode<T>> first = this->headerTable.removeNode(item);
+	assert(first);
+	this->deleteItem(first);
+	return move(first);
 }
 
 template <typename T>
@@ -96,4 +109,20 @@ void FPTreeManager<T>::generateFPTree(FileOrderedReader& reader, double supportF
 	// Knowing the number of the input itemsets I can determine the required count to be frequent given the required supportFraction percentage
 	this->supportCount = itemsetCount * supportFraction;
 	BOOST_LOG_TRIVIAL(debug) << "Total itemsets parsed: " << itemsetCount << ", support count: " << this->supportCount;
+}
+
+template <typename T>
+void FPTreeManager<T>::deleteItem(shared_ptr<FPTreeNode<T>> node) {
+	// Assume that two itemsets with duplicate items do not exists
+	for (; node; node = node->getNext()) {
+		assert(!node->parent.expired());
+		// Update children's parent
+		for (shared_ptr<FPTreeNode<T>> nephew : node->children) {
+			nephew->parent = node->parent;
+		}
+		shared_ptr<FPTreeNode<T>> parent = node->parent.lock();
+		parent->children.erase(node);
+		// Adopt all the nephews, this works with the assumption that itemsets do NOT have repeated items
+		parent->children.merge(node->children);
+	}
 }
