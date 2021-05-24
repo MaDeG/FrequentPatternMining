@@ -13,5 +13,5 @@ message("Found source files: ${FrequentPatternMining_SRC}")
 add_executable(FrequentPatternMining ${FrequentPatternMining_SRC})
 file(GLOB FrequentPatternMining_SRC CONFIGURE_DEPENDS "src/*.h" "src/*.cpp")
 
-#add_executable(FrequentPatternMining src/FileOrderedReader.h src/FileOrderedReader.cpp src/FPTreeNode.cpp src/FPTreeNode.h src/FPTreeManager.cpp src/FPTreeManager.h src/main.cpp)
+#add_executable(FrequentPatternMining src/FileOrderedReader.h src/FileOrderedReader.cpp src/FPTreeNode.cpp src/FPTreeNode.h src/FPTreeManager.cpp src/FPTreeManager.h src/HeaderTable.cpp src/HeaderTable.h src/main.cpp)
 target_link_libraries(FrequentPatternMining Boost::program_options Boost::log)

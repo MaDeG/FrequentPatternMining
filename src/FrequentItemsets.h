@@ -6,14 +6,17 @@
 template <typename T>
 class FrequentItemsets {
 public:
-	FrequentItemsets(const FPTreeManager<T>& manager);
-	const std::list<T>& getFrequentItemsets() const;
+	FrequentItemsets(FPTreeManager<T>& manager, const bool debug);
+	const std::shared_ptr<std::list<std::list<T>>> getFrequentItemsets() const;
 	
 private:
-	std::list<T> _frequentItemsets;
-	const FPTreeManager<T>& _manager;
+	std::shared_ptr<std::list<std::list<T>>> frequentItemsets;
+	const bool debug;
 
-	void computeFrequentItemsets();
+	std::unique_ptr<std::list<std::list<T>>> computeFrequentItemsets(std::unique_ptr<FPTreeManager<T>> manager);
+	void recomputeSupport(std::shared_ptr<FPTreeNode<T>> node, HeaderTable<T>& headerTable);
 };
+
+template class FrequentItemsets<int>;
 
 #endif //FREQUENTPATTERNMINING_FREQUENTITEMSETS_H

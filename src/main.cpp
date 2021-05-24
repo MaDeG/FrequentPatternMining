@@ -1,9 +1,8 @@
-#include <queue>
 #include <boost/program_options.hpp>
 #include <boost/log/core.hpp>
 #include <boost/log/trivial.hpp>
 #include <boost/log/expressions.hpp>
-#include <iostream>
+#include <queue>
 #include "FileOrderedReader.h"
 #include "FPTreeManager.h"
 #include "FrequentItemsets.h"
@@ -14,49 +13,6 @@ void filter_logs() {
 	boost::log::core::get()->set_filter(boost::log::trivial::severity >= boost::log::trivial::info);
 }
 
-string pretty_print(const map<int, shared_ptr<FPTreeNode<int>>> &table) {
-	string out = "Key\t\t-\t\tNode\n";
-	for (const map<int, shared_ptr<FPTreeNode<int>>>::value_type& i : table) {
-		out.append(to_string(i.first) + "\t\t-\t\t" + ((string) *i.second) + "\n");
-	}
-	return out;
-}
-
-string pretty_print(const shared_ptr<FPTreeNode<int>> root) {
-	string out;
-	int currentLevel = 0;
-	queue<const FPTreeNode<int>*> nodes;
-	queue<int> levels;
-	nodes.push(root.get());
-	levels.push(0);
-	while(!nodes.empty()) {
-		assert(nodes.size() == levels.size());
-		const FPTreeNode<int>* node = nodes.front();
-		const int level = levels.front();
-		nodes.pop();
-		levels.pop();
-		if (currentLevel != level) {
-			assert(currentLevel == level - 1);
-			out.append("\n");
-			currentLevel = level;
-			if (node == nullptr) {
-				continue;
-			}
-		} else if (node == nullptr) {
-			out.append("\t\t|\t\t");
-			continue;
-		}
-		out.append(((string) *node) + " - ");
-		for (shared_ptr<FPTreeNode<int>> i : node->getChildren()) {
-			nodes.push(i.get());
-			levels.push(level + 1);
-		}
-		nodes.push(nullptr);
-		levels.push(level + 1);
-	}
-	return out;
-}
-
 int main(int argc, char *argv[]) {
 	double supportFraction;
 	string input;
@@ -65,7 +21,11 @@ int main(int argc, char *argv[]) {
 		boost::program_options::options_description desc("Allowed options");
 		desc.add_options()
 				("help,h", "Print program usage")
-				("supportFraction,s", boost::program_options::value<double>(&supportFraction)->required(), "Set minimum supportFraction fraction in percentage for an itemset to be considered frequent (e.g. 65%)")
+				("supportFraction,s", boost::program_options::value<double>(&supportFraction)->required()->notifier([](double value) {
+					if (value <= 0 || value > 100) {
+						throw boost::program_options::validation_error(boost::program_options::validation_error::invalid_option_value, "supportFraction", to_string(value));
+					}
+				}), "Set minimum supportFraction fraction in percentage for an itemset to be considered frequent (e.g. 65%), must be a value between 0 excluded and 100 included")
 				("input,i", boost::program_options::value<string>(&input)->required(), "Input file where new-line separated transactions will be read")
 				("debug,d", boost::program_options::bool_switch(&debug)->default_value(false), "Enable or disable debug outputs");
 		boost::program_options::variables_map vm;
@@ -91,23 +51,32 @@ int main(int argc, char *argv[]) {
 
 	FileOrderedReader reader(input, debug);
 
-	FPTreeManager<int> manager(reader, supportFraction);
+	FPTreeManager<int> manager(reader, supportFraction, debug);
 	if (debug) {
 		const shared_ptr<FPTreeNode<int>> root = manager.getRoot();
-		BOOST_LOG_TRIVIAL(debug) << endl << pretty_print(root);
-		const map<int, shared_ptr<FPTreeNode<int>>>& headerTable = manager.getHeaderTable();
-		BOOST_LOG_TRIVIAL(debug) << endl << pretty_print(headerTable);
+		BOOST_LOG_TRIVIAL(debug) << "FP-Tree created:" << endl << manager;
+		const HeaderTable<int>& headerTable = manager.getHeaderTable();
+		BOOST_LOG_TRIVIAL(debug) << endl << headerTable;
 	}
 
-	FPTreeManager<int> newManager(manager);
+	/*FPTreeManager<int> newManager(manager);
 	if (debug) {
 		const shared_ptr<FPTreeNode<int>> root = newManager.getRoot();
 		BOOST_LOG_TRIVIAL(debug) << endl << pretty_print(root);
-		const map<int, shared_ptr<FPTreeNode<int>>>& headerTable = newManager.getHeaderTable();
-		BOOST_LOG_TRIVIAL(debug) << endl << pretty_print(headerTable);
-	}
+		const HeaderTable<int>& headerTable = newManager.getHeaderTable();
+		BOOST_LOG_TRIVIAL(debug) << endl << headerTable;
+	}*/
 
-	FrequentItemsets<int> frequentItemsets();
+	FrequentItemsets<int> frequentItemsets(manager, debug);
+	shared_ptr<list<list<int>>> itemsets = frequentItemsets.getFrequentItemsets();
+	BOOST_LOG_TRIVIAL(info) << "Found " << itemsets->size() << " frequent itemsets";
+	for (list<int>& itemset : *itemsets) {
+		string itemset_string;
+		for (int item : itemset) {
+			itemset_string.append(to_string(item) + " ");
+		}
+		BOOST_LOG_TRIVIAL(info) << itemset_string;
+	}
 
 	return 0;
 }

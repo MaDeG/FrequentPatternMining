@@ -2,9 +2,10 @@
 #define FREQUENTPATTERNMINING_FPTREENODE_H
 
 #include <list>
+#include <set>
 #include <memory>
-#include <map>
 
+template <typename T> class HeaderTable;
 template <typename T> class FPTreeManager;
 
 template<typename T>
@@ -19,21 +20,23 @@ public:
 	int getFrequency() const;
 	const std::shared_ptr<FPTreeNode<T>> getNext() const;
 	const std::shared_ptr<FPTreeNode<T>> getParent() const;
-	const std::list<std::shared_ptr<FPTreeNode<T>>>& getChildren() const;
 	void incrementFrequency();
+	void incrementFrequency(const int addend);
 	void setNext(std::shared_ptr<FPTreeNode<T>> next);
-	void addSequence(std::unique_ptr<std::list<T>> values, std::map<T, std::shared_ptr<FPTreeNode<T>>>& _headerTable);
+	void addSequence(std::unique_ptr<std::list<T>> values, HeaderTable<T>& _headerTable);
 	operator std::string() const;
 
 private:
-	T _value;
-	int _frequency;
-	std::shared_ptr<FPTreeNode<T>> _parent;
-	std::list<std::shared_ptr<FPTreeNode<T>>> _children;
-	std::shared_ptr<FPTreeNode<T>> _next;
+	static bool nodeComparator(const std::shared_ptr<FPTreeNode<T>>& a, const std::shared_ptr<FPTreeNode<T>>& b);
+	T value;
+	int frequency;
+	std::shared_ptr<FPTreeNode<T>> parent;
+	std::shared_ptr<FPTreeNode<T>> next;
+	std::set<std::shared_ptr<FPTreeNode<T>>, decltype(FPTreeNode<T>::nodeComparator)*> children;
 
 	FPTreeNode(const FPTreeNode<T>& node);
-	std::shared_ptr<FPTreeNode<T>> deepCopy(std::shared_ptr<FPTreeNode<T>> parent, std::map<T, std::shared_ptr<FPTreeNode<T>>>& newHeaderTable) const;
+	std::shared_ptr<FPTreeNode<T>> deepCopy(std::shared_ptr<FPTreeNode<T>> parent, HeaderTable<T>& newHeaderTable) const;
+	std::shared_ptr<FPTreeNode<T>> getPrefixTree(std::shared_ptr<FPTreeNode<T>> parent, HeaderTable<T>& newHeaderTable, const T& item) const;
 };
 
 template class FPTreeNode<int>;
@@ -43,7 +46,7 @@ template class FPTreeNode<int>;
 //template class FPTreeNode<std::string>;
 
 template <typename T>
-std::ostream& operator << (std::ostream &out, const FPTreeNode<T>& node) {
+std::ostream& operator << (std::ostream& out, const FPTreeNode<T>& node) {
 	return out << (std::string) node;
 }
 

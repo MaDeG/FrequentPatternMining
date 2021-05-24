@@ -22,9 +22,9 @@ public:
 	std::unique_ptr<std::list<int>> getNextOrderedTransaction();
 
 private:
-	std::unique_ptr<std::ifstream> _input;
-	std::map<int, int> _frequencies;
-	const bool _debug;
+	std::unique_ptr<std::ifstream> input;
+	std::map<int, int> frequencies;
+	const bool debug;
 
 	FileOrderedReader(const FileOrderedReader&) = default;
 	void computeFrequencies();
