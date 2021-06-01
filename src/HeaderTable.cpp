@@ -1,4 +1,7 @@
 #include <assert.h>
+#include <iostream>
+#include <sstream>
+#include <iomanip>
 #include <boost/log/trivial.hpp>
 #include <boost/log/expressions.hpp>
 #include "HeaderTable.h"
@@ -6,7 +9,8 @@
 using namespace std;
 
 template <typename T>
-HeaderTable<T>::HeaderTable(const bool debug) : debug(debug) {}
+HeaderTable<T>::HeaderTable(const bool debug) : debug(debug)
+{ }
 
 template <typename T>
 shared_ptr<FPTreeNode<T>> HeaderTable<T>::addNode(const shared_ptr<FPTreeNode<T>> node) {
@@ -17,15 +21,21 @@ shared_ptr<FPTreeNode<T>> HeaderTable<T>::addNode(const shared_ptr<FPTreeNode<T>
 		lb->second.totalFrequency += node->getFrequency();
 		previous = node;
 		swap(lb->second.node, previous);
+		// Update next and previous fields in the nodes
+		previous->setPrevious(node);
+		node->setPrevious(weak_ptr<FPTreeNode<T>>());
+		node->setNext(previous);
 	} else {
-		BOOST_LOG_TRIVIAL(debug) << "Inserted new element in header table: " << *node;
+		cout << "Inserted new element in header table: " << (string) *node << endl;
 		this->headerTable.try_emplace(lb, node->getValue(), node);
+		node->setNext(weak_ptr<FPTreeNode<T>>());
+		node->setPrevious(weak_ptr<FPTreeNode<T>>());
 	}
 	return previous;
 }
 
 template <typename T>
-const shared_ptr<FPTreeNode<T>> HeaderTable<T>::getNode(const T& item) const {
+shared_ptr<FPTreeNode<T>> HeaderTable<T>::getNode(const T& item) const {
 	typename map<T, HeaderEntry<T>>::const_iterator it = this->headerTable.find(item);
 	return it != this->headerTable.cend() ? it->second.node : nullptr;
 }
@@ -36,7 +46,25 @@ shared_ptr<FPTreeNode<T>> HeaderTable<T>::removeNode(const T& item) {
 	assert(it != this->headerTable.end());
 	shared_ptr<FPTreeNode<T>> entry = it->second.node;
 	this->headerTable.erase(it);
-	return entry;
+	return move(entry);
+}
+
+template <typename T>
+void HeaderTable<T>::removeNode(shared_ptr<FPTreeNode<T>> node) {
+	typename map<T, HeaderEntry<T>>::iterator it = this->headerTable.find(node->getValue());
+	assert(it != this->headerTable.end());
+	assert(it->second.node);
+	if (node->getPrevious().expired()) {
+		assert(node == it->second.node);
+		it->second.node = node->getNext().lock();
+	}
+	it->second.totalFrequency -= node->getFrequency();
+	if (!node->getPrevious().expired()) {
+		node->getPrevious().lock()->setNext(node->getNext());
+	}
+	if (!node->getNext().expired()) {
+		node->getNext().lock()->setPrevious(node->getPrevious());
+	}
 }
 
 template <typename T>
@@ -73,10 +101,21 @@ typename map<T, HeaderEntry<T>>::const_iterator HeaderTable<T>::cend() {
 }
 
 template <typename T>
+bool HeaderTable<T>::empty() const {
+	return this->headerTable.empty();
+}
+
+template <typename T>
 HeaderTable<T>::operator string() const {
-	string out = "Key\t\t\t|\t\t\tValue(First - Total frequency)\n";
+	ostringstream outStream;
+	outStream << setw(10) << "Key" << " | " << setw(38) << "Value(First - Total frequency)" << " | " << setw(15) << "Chain" << endl;
 	for (const typename map<T, HeaderEntry<T>>::value_type& entry : this->headerTable) {
-		out += to_string(entry.first) + "\t\t\t|\t\t\t" + (string) *(entry.second.node) + " - " + to_string(entry.second.totalFrequency) + "\n";
+		assert(entry.second.node);
+		outStream << setw(10) << entry.first << " |" << setw(35) << *(entry.second.node) << " - " << entry.second.totalFrequency << " | ";
+		for (shared_ptr<FPTreeNode<T>> node = entry.second.node->getNext().lock(); node; node = node->getNext().lock()) {
+			outStream << "-> " << *node;
+		}
+		outStream << endl;
 	}
-	return out;
+	return outStream.str();
 }

@@ -38,7 +38,7 @@ unique_ptr<list<int>> FileOrderedReader::getNextOrderedTransaction() {
 	}
 	unique_ptr<list<int>> itemset = make_unique<list<int>>();
 	istringstream iss(line);
-	itemset->assign(istream_iterator<int>(iss), std::istream_iterator<int>());
+	itemset->assign(istream_iterator<int>(iss), istream_iterator<int>());
 	itemset->sort([&](int a, int b) { return this->frequencies.at(a) > this->frequencies.at(b); });
 	// We do not take into consideration duplicate elements
 	itemset->unique();

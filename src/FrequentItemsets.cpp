@@ -7,6 +7,7 @@ using namespace std;
 
 template <typename T>
 FrequentItemsets<T>::FrequentItemsets(FPTreeManager<T>& manager, const bool debug) : debug(debug) {
+	manager.pruneInfrequent();
 	this->frequentItemsets = move(this->computeFrequentItemsets(make_unique<FPTreeManager<T>>(manager)));
 }
 
@@ -20,30 +21,29 @@ unique_ptr<list<list<T>>> FrequentItemsets<T>::computeFrequentItemsets(unique_pt
 	BOOST_LOG_TRIVIAL(debug) << "Received FPTree manager: " << endl << (string) *manager;
 	unique_ptr<list<list<T>>> frequentItemsets = make_unique<list<list<T>>>();
 	const int supportCount = manager->getSupportCount();
-	manager->pruneInfrequent();
-	// All the remaining items in the header table are frequent
-	for (typename map<T, HeaderEntry<T>>::const_iterator it = manager->headerTable.cbegin(); it != manager->headerTable.cend(); it++) {
-		list<T> newItemset({it->first});
-		frequentItemsets->emplace_back(move(newItemset));
-	}
 	// Iterate over all the unique items that appeared in the itemset collection
 	for (typename map<T, HeaderEntry<T>>::const_iterator it = manager->headerTable.cbegin(); it != manager->headerTable.cend(); it++) {
 		const T& item = it->first;
+		// All the remaining items in the header table are frequent
+		frequentItemsets->emplace_back((initializer_list<T>) {item});
 		BOOST_LOG_TRIVIAL(debug) << "Prefix element: " << item;
 		unique_ptr<FPTreeManager<T>> prefixManager = manager->getPrefixTree(item);
-		shared_ptr<FPTreeNode<T>> firstItemNode = prefixManager->removeItem(item);
+		BOOST_LOG_TRIVIAL(debug) << "Raw Prefix tree: " << endl << *prefixManager;
 		// After recomputing support we will not need the chosen prefix's nodes anymore
-		this->recomputeSupport(move(firstItemNode), prefixManager->headerTable);
-		BOOST_LOG_TRIVIAL(debug) << "Prefix tree with support recomputed: " << endl << *prefixManager;
+		this->recomputeSupport(item, prefixManager->headerTable);
+		BOOST_LOG_TRIVIAL(debug) << "Recomputed support:" << endl << *prefixManager;
+		prefixManager->removeItem(item);
+		BOOST_LOG_TRIVIAL(debug) << "Removed prefix item " << item << endl << *prefixManager;
+		prefixManager->pruneInfrequent();
+		if (prefixManager->headerTable.empty()) {
+			BOOST_LOG_TRIVIAL(debug) << "Empty FPTree found for prefix " << item << ", skipping";
+			continue;
+		}
+		BOOST_LOG_TRIVIAL(debug) << "Prefix tree pruned with support recomputed: " << endl << *prefixManager;
 		unique_ptr<list<list<T>>> partialFrequentItemsets = move(this->computeFrequentItemsets(move(prefixManager)));
 		// Prepend the current element to the results found
 		for (list<T>& partialItemset : *partialFrequentItemsets) {
 			partialItemset.push_front(item);
-			if (this->debug) {
-				ostringstream out;
-				copy(partialItemset.cbegin(), partialItemset.cend(), ostream_iterator<int>(out, " "));
-				BOOST_LOG_TRIVIAL(debug) << out.str();
-			}
 		}
 		// Move partial result to the final result
 		frequentItemsets->splice(frequentItemsets->end(), *partialFrequentItemsets);
@@ -52,7 +52,8 @@ unique_ptr<list<list<T>>> FrequentItemsets<T>::computeFrequentItemsets(unique_pt
 }
 
 template <typename T>
-void FrequentItemsets<T>::recomputeSupport(shared_ptr<FPTreeNode<T>> node, HeaderTable<T>& headerTable) {
+void FrequentItemsets<T>::recomputeSupport(const T& item, HeaderTable<T>& headerTable) {
+	shared_ptr<FPTreeNode<T>> node = headerTable.getNode(item);
 	assert(node);
 	do {
 		int frequency = node->getFrequency();
@@ -66,5 +67,5 @@ void FrequentItemsets<T>::recomputeSupport(shared_ptr<FPTreeNode<T>> node, Heade
 			// Increment the total frequency for these items
 			headerTable.increaseFrequency(i->getValue(), frequency);
 		}
-	} while ((node = node->getNext()));
+	} while ((node = node->getNext().lock()));
 }
