@@ -71,7 +71,7 @@ void FPTreeNode<T>::addSequence(unique_ptr<list<T>> values, HeaderTable<T>& head
 	if (values->empty()) {
 		return;
 	}
-	const T& value = values->front();
+	const T value = values->front();
 	values->pop_front();
 	// Binary search among the children
 	typename set<shared_ptr<FPTreeNode<T>>>::iterator childrenIt = lower_bound(this->children.begin(),
