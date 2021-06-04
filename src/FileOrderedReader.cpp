@@ -1,15 +1,16 @@
-#include <boost/log/trivial.hpp>
 #include <sstream>
+#include <iostream>
 #include "FileOrderedReader.h"
+#include "Log.h"
 
 using namespace std;
 
 FileOrderedReader::FileOrderedReader(string input, bool debug) : debug(debug) {
 	this->input = make_unique<ifstream>(input);
 	this->computeFrequencies();
-	BOOST_LOG_TRIVIAL(info) << "Computed frequencies:";
+	cout << "Computed frequencies:" << endl;
 	for (const pair<int, int> &p : this->frequencies) {
-		BOOST_LOG_TRIVIAL(info) << "Item '" << p.first << "'\tfrequency: " << p.second;
+		cout << "Item '" << p.first << "'\tfrequency: " << p.second << endl;
 	}
 }
 
@@ -38,14 +39,14 @@ unique_ptr<list<int>> FileOrderedReader::getNextOrderedTransaction() {
 	}
 	unique_ptr<list<int>> itemset = make_unique<list<int>>();
 	istringstream iss(line);
-	itemset->assign(istream_iterator<int>(iss), std::istream_iterator<int>());
+	itemset->assign(istream_iterator<int>(iss), istream_iterator<int>());
 	itemset->sort([&](int a, int b) { return this->frequencies.at(a) > this->frequencies.at(b); });
 	// We do not take into consideration duplicate elements
 	itemset->unique();
-	if (this->debug) {
+	DEBUG(
 		ostringstream str;
 		copy(itemset->cbegin(), itemset->cend(), ostream_iterator<int>(str, " "));
-		BOOST_LOG_TRIVIAL(debug) << "Read ordered itemset: " << str.str();
-	}
+		cout << "Read ordered itemset: " << str.str();
+	)
 	return move(itemset);
 }

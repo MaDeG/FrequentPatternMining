@@ -1,7 +1,10 @@
-#include <boost/log/trivial.hpp>
-#include <boost/log/expressions.hpp>
+#include <memory>
+#include <sstream>
+#include <iostream>
+#include <assert.h>
 #include "FPTreeNode.h"
 #include "HeaderTable.h"
+#include "Log.h"
 
 using namespace std;
 
@@ -28,8 +31,13 @@ int FPTreeNode<T>::getFrequency() const {
 }
 
 template <typename T>
-const shared_ptr<FPTreeNode<T>> FPTreeNode<T>::getNext() const {
+const weak_ptr<FPTreeNode<T>> FPTreeNode<T>::getNext() const {
 	return this->next;
+}
+
+template <typename T>
+const weak_ptr<FPTreeNode<T>> FPTreeNode<T>::getPrevious() const {
+	return this->previous;
 }
 
 template <typename T>
@@ -49,8 +57,13 @@ void FPTreeNode<T>::incrementFrequency(const int addend) {
 }
 
 template<typename T>
-void FPTreeNode<T>::setNext(shared_ptr<FPTreeNode<T>> next) {
+void FPTreeNode<T>::setNext(weak_ptr<FPTreeNode<T>> next) {
 	this->next = next;
+}
+
+template <typename T>
+void FPTreeNode<T>::setPrevious(weak_ptr<FPTreeNode<T>> previous) {
+	this->previous = previous;
 }
 
 template<typename T>
@@ -58,7 +71,7 @@ void FPTreeNode<T>::addSequence(unique_ptr<list<T>> values, HeaderTable<T>& head
 	if (values->empty()) {
 		return;
 	}
-	T &value = values->front();
+	const T& value = values->front();
 	values->pop_front();
 	// Binary search among the children
 	typename set<shared_ptr<FPTreeNode<T>>>::iterator childrenIt = lower_bound(this->children.begin(),
@@ -70,37 +83,52 @@ void FPTreeNode<T>::addSequence(unique_ptr<list<T>> values, HeaderTable<T>& head
 		assert(childrenIt == this->children.cend() || (*childrenIt)->value > value);
 		// Need to create a new node
 		shared_ptr<FPTreeNode<T>> newNode = make_shared<FPTreeNode<T>>(value, this->getptr());
-		BOOST_LOG_TRIVIAL(debug) << "Create new node: " << *newNode;
+		DEBUG(cout << "Create new node: " << *newNode;)
 		childrenIt = this->children.insert(childrenIt, move(newNode));
+		headerTable.addNode(*childrenIt);
 	}
 	// Add new item and/or update count in the header table
-	headerTable.addNode(*childrenIt);
+	headerTable.increaseFrequency(value, 1);
 	(*childrenIt)->incrementFrequency();
 	(*childrenIt)->addSequence(move(values), headerTable);
 }
 
 template <typename T>
+shared_ptr<FPTreeNode<T>> FPTreeNode<T>::getChildren(const T& item) const {
+	auto it = lower_bound(this->children.begin(),
+											  this->children.end(),
+											  item,
+											  [](const shared_ptr<FPTreeNode<T>>& child, const T& item) { return child->getValue() < item; });
+	return it != this->children.end() && (*it)->getValue() == item ? (*it) : nullptr;
+}
+
+template <typename T>
 FPTreeNode<T>::operator string() const {
-	return this->frequency >= 0 ? "'" + to_string(this->value) + "' *" + to_string(this->frequency) : "NULL";
+	if (this->frequency < 0) {
+		return "NULL";
+	}
+	ostringstream outStream;
+	outStream << "'" << this->value << "' *" << this->frequency << " (" << (void *) this << ")";
+	return outStream.str();
 }
 
 template <typename T>
 FPTreeNode<T>::FPTreeNode(const FPTreeNode<T>& node) : value(node.value),
                                                        frequency(node.frequency),
                                                        children(FPTreeNode<T>::nodeComparator) {
-	// Children and Next shall be initialized by FPTreeNode::deepCopy or FPTreeNode::getPrefixTree to ensure that only one copy per node is made
+	// Children, Next and Previous shall be initialized by FPTreeNode::deepCopy or FPTreeNode::getPrefixTree to ensure that only one copy per node is made
 }
 
 template <typename T>
 shared_ptr<FPTreeNode<T>> FPTreeNode<T>::deepCopy(shared_ptr<FPTreeNode<T>> parent, HeaderTable<T>& newHeaderTable) const {
+	DEBUG(cout << "Performing deep copy on " << *this;)
 	// Set value and frequency
 	shared_ptr<FPTreeNode<T>> newNode(new FPTreeNode<T>(*this));
 	// Set parent
 	newNode->parent = parent;
 	if (this->frequency >= 0) {
-		// Only if this is not the NULL root then set reference to next and update header table
+		// Only if this is not the NULL root then set reference to next and previous and update header table so that we make a head insertion
 		shared_ptr<FPTreeNode<T>> previous = newHeaderTable.addNode(newNode);
-		newNode->next = previous;
 	}
 	// Create new children
 	for (shared_ptr<FPTreeNode<T>> child : this->children) {
@@ -120,9 +148,10 @@ shared_ptr<FPTreeNode<T>> FPTreeNode<T>::getPrefixTree(shared_ptr<FPTreeNode<T>>
 	// Set parent
 	newNode->parent = parent;
 	if (this->frequency >= 0) {
-		// Only if this is not the NULL root then set reference to next and update header table
+		// Only if this is not the NULL root then set reference to next and previous and update header table so that we make a head insertion
 		shared_ptr<FPTreeNode<T>> previous = newHeaderTable.addNode(newNode);
 		newNode->next = previous;
+		newNode->previous.reset();
 	}
 	// Create new children
 	for (shared_ptr<FPTreeNode<T>> child : this->children) {

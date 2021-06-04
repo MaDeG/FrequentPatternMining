@@ -11,12 +11,14 @@ class HeaderTable {
 public:
 	HeaderTable(const bool debug);
 	std::shared_ptr<FPTreeNode<T>> addNode(const std::shared_ptr<FPTreeNode<T>> node);
-	const std::shared_ptr<FPTreeNode<T>> getNode(const T& item) const;
+	std::shared_ptr<FPTreeNode<T>> getNode(const T& item) const;
 	std::shared_ptr<FPTreeNode<T>> removeNode(const T& item);
+	bool removeNode(const std::shared_ptr<FPTreeNode<T>> node);
 	void increaseFrequency(const T& item, const int addend);
 	void pruneInfrequent(int minSupportCount);
 	typename std::map<T, HeaderEntry<T>>::const_iterator cbegin();
 	typename std::map<T, HeaderEntry<T>>::const_iterator cend();
+	bool empty() const;
 	operator std::string() const;
 
 private:
