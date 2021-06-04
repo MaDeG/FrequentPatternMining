@@ -1,7 +1,8 @@
 #include <assert.h>
 #include <sstream>
-#include <boost/log/trivial.hpp>
+#include <iostream>
 #include "FrequentItemsets.h"
+#include "Log.h"
 
 using namespace std;
 
@@ -18,7 +19,7 @@ const shared_ptr<list<list<T>>> FrequentItemsets<T>::getFrequentItemsets() const
 
 template <typename T>
 unique_ptr<list<list<T>>> FrequentItemsets<T>::computeFrequentItemsets(unique_ptr<FPTreeManager<T>> manager) {
-	BOOST_LOG_TRIVIAL(debug) << "Received FPTree manager: " << endl << (string) *manager;
+	DEBUG(cout << "Received FPTree manager: " << endl << (string) *manager;)
 	unique_ptr<list<list<T>>> frequentItemsets = make_unique<list<list<T>>>();
 	const int supportCount = manager->getSupportCount();
 	// Iterate over all the unique items that appeared in the itemset collection
@@ -26,20 +27,20 @@ unique_ptr<list<list<T>>> FrequentItemsets<T>::computeFrequentItemsets(unique_pt
 		const T& item = it->first;
 		// All the remaining items in the header table are frequent
 		frequentItemsets->emplace_back((initializer_list<T>) {item});
-		BOOST_LOG_TRIVIAL(debug) << "Prefix element: " << item;
+		DEBUG(cout << "Prefix element: " << item;)
 		unique_ptr<FPTreeManager<T>> prefixManager = manager->getPrefixTree(item);
-		BOOST_LOG_TRIVIAL(debug) << "Raw Prefix tree: " << endl << *prefixManager;
+		DEBUG(cout << "Raw Prefix tree: " << endl << *prefixManager;)
 		// After recomputing support we will not need the chosen prefix's nodes anymore
 		this->recomputeSupport(item, prefixManager->headerTable);
-		BOOST_LOG_TRIVIAL(debug) << "Recomputed support:" << endl << *prefixManager;
+		DEBUG(cout << "Recomputed support:" << endl << *prefixManager;)
 		prefixManager->removeItem(item);
-		BOOST_LOG_TRIVIAL(debug) << "Removed prefix item " << item << endl << *prefixManager;
+		DEBUG(cout << "Removed prefix item " << item << endl << *prefixManager;)
 		prefixManager->pruneInfrequent();
 		if (prefixManager->headerTable.empty()) {
-			BOOST_LOG_TRIVIAL(debug) << "Empty FPTree found for prefix " << item << ", skipping";
+			DEBUG(cout << "Empty FPTree found for prefix " << item << ", skipping";)
 			continue;
 		}
-		BOOST_LOG_TRIVIAL(debug) << "Prefix tree pruned with support recomputed: " << endl << *prefixManager;
+		DEBUG(cout << "Prefix tree pruned with support recomputed: " << endl << *prefixManager;)
 		unique_ptr<list<list<T>>> partialFrequentItemsets = move(this->computeFrequentItemsets(move(prefixManager)));
 		// Prepend the current element to the results found
 		for (list<T>& partialItemset : *partialFrequentItemsets) {

@@ -1,9 +1,10 @@
-#include <boost/log/trivial.hpp>
-#include <boost/log/expressions.hpp>
 #include <memory>
 #include <sstream>
+#include <iostream>
+#include <assert.h>
 #include "FPTreeNode.h"
 #include "HeaderTable.h"
+#include "Log.h"
 
 using namespace std;
 
@@ -82,7 +83,7 @@ void FPTreeNode<T>::addSequence(unique_ptr<list<T>> values, HeaderTable<T>& head
 		assert(childrenIt == this->children.cend() || (*childrenIt)->value > value);
 		// Need to create a new node
 		shared_ptr<FPTreeNode<T>> newNode = make_shared<FPTreeNode<T>>(value, this->getptr());
-		BOOST_LOG_TRIVIAL(debug) << "Create new node: " << *newNode;
+		DEBUG(cout << "Create new node: " << *newNode;)
 		childrenIt = this->children.insert(childrenIt, move(newNode));
 		headerTable.addNode(*childrenIt);
 	}
@@ -120,7 +121,7 @@ FPTreeNode<T>::FPTreeNode(const FPTreeNode<T>& node) : value(node.value),
 
 template <typename T>
 shared_ptr<FPTreeNode<T>> FPTreeNode<T>::deepCopy(shared_ptr<FPTreeNode<T>> parent, HeaderTable<T>& newHeaderTable) const {
-	BOOST_LOG_TRIVIAL(debug) << "Performing deep copy";
+	DEBUG(cout << "Performing deep copy on " << *this;)
 	// Set value and frequency
 	shared_ptr<FPTreeNode<T>> newNode(new FPTreeNode<T>(*this));
 	// Set parent

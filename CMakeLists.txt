@@ -6,7 +6,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 find_package(Boost 1.40 COMPONENTS program_options REQUIRED)
-find_package(Boost 1.40 COMPONENTS log REQUIRED)
 
 #file(GLOB FrequentPatternMining_SRC "src/*.h" "src/*.cpp")
 #message("Found source files: ${FrequentPatternMining_SRC}")
@@ -19,5 +18,6 @@ add_executable(FrequentPatternMining src/FileOrderedReader.cpp src/FileOrderedRe
                                      src/HeaderTable.cpp src/HeaderTable.h
                                      src/HeaderEntry.cpp src/HeaderEntry.h
                                      src/FrequentItemsets.cpp src/FrequentItemsets.h
+                                     src/Log.h
                                      src/main.cpp)
-target_link_libraries(FrequentPatternMining Boost::program_options Boost::log)
+target_link_libraries(FrequentPatternMining Boost::program_options)

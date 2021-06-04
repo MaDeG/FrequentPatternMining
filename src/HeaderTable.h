@@ -13,7 +13,7 @@ public:
 	std::shared_ptr<FPTreeNode<T>> addNode(const std::shared_ptr<FPTreeNode<T>> node);
 	std::shared_ptr<FPTreeNode<T>> getNode(const T& item) const;
 	std::shared_ptr<FPTreeNode<T>> removeNode(const T& item);
-	void removeNode(const std::shared_ptr<FPTreeNode<T>> node);
+	bool removeNode(const std::shared_ptr<FPTreeNode<T>> node);
 	void increaseFrequency(const T& item, const int addend);
 	void pruneInfrequent(int minSupportCount);
 	typename std::map<T, HeaderEntry<T>>::const_iterator cbegin();
