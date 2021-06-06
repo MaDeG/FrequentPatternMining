@@ -1,17 +1,12 @@
-#include <sstream>
 #include <iostream>
 #include "FileOrderedReader.h"
-#include "Log.h"
+#include "Params.h"
 
 using namespace std;
 
-FileOrderedReader::FileOrderedReader(string input, bool debug) : debug(debug) {
+FileOrderedReader::FileOrderedReader(string input) {
 	this->input = make_unique<ifstream>(input);
 	this->computeFrequencies();
-	cout << "Computed frequencies:" << endl;
-	for (const pair<int, int> &p : this->frequencies) {
-		cout << "Item '" << p.first << "'\tfrequency: " << p.second << endl;
-	}
 }
 
 void FileOrderedReader::computeFrequencies() {
@@ -49,4 +44,13 @@ unique_ptr<list<int>> FileOrderedReader::getNextOrderedTransaction() {
 		cout << "Read ordered itemset: " << str.str();
 	)
 	return move(itemset);
+}
+
+FileOrderedReader::operator string() const {
+	ostringstream outStream;
+	outStream << setw(10) << "Item" << " | " << setw(10) << "Frequency" << endl;
+	for (const pair<int, int>& p : this->frequencies) {
+		outStream << setw(10) << (string("'") + to_string(p.first) + string("'")) << " | " << setw(10) << p.second << endl;
+	}
+	return outStream.str();
 }

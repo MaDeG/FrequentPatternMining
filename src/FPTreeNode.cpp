@@ -4,7 +4,7 @@
 #include <assert.h>
 #include "FPTreeNode.h"
 #include "HeaderTable.h"
-#include "Log.h"
+#include "Params.h"
 
 using namespace std;
 

@@ -50,7 +50,7 @@ template class FPTreeNode<int>;
 //template class FPTreeNode<std::string>;
 
 template <typename T>
-std::ostream& operator << (std::ostream& out, const FPTreeNode<T>& node) {
+inline std::ostream& operator << (std::ostream& out, const FPTreeNode<T>& node) {
 	return out << (std::string) node;
 }
 

@@ -1,19 +1,20 @@
 #ifndef FREQUENTPATTERNMINING_FREQUENTITEMSETS_H
 #define FREQUENTPATTERNMINING_FREQUENTITEMSETS_H
 
+#include <omp.h>
 #include "FPTreeManager.h"
+#include "Params.h"
 
 template <typename T>
 class FrequentItemsets {
 public:
-	FrequentItemsets(FPTreeManager<T>& manager, const bool debug);
-	const std::shared_ptr<std::list<std::list<T>>> getFrequentItemsets() const;
+	FrequentItemsets(FPTreeManager<T>& manager);
+	const std::list<std::list<T>>& getFrequentItemsets() const;
 	
 private:
-	std::shared_ptr<std::list<std::list<T>>> frequentItemsets;
-	const bool debug;
+	std::list<std::list<T>> frequentItemsets;
 
-	std::unique_ptr<std::list<std::list<T>>> computeFrequentItemsets(std::unique_ptr<FPTreeManager<T>> manager);
+	std::list<std::list<T>> computeFrequentItemsets(std::unique_ptr<FPTreeManager<T>> manager, int nThreads = Params::nThreads);
 	void recomputeSupport(const T& item, HeaderTable<T>& headerTable);
 };
 

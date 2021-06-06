@@ -15,7 +15,7 @@ template <typename T>
 class FPTreeManager {
 	friend FrequentItemsets<T>;
 public:
-	FPTreeManager(FileOrderedReader& reader, const double supportFraction, const bool debug);
+	FPTreeManager(FileOrderedReader& reader, const double supportFraction);
 	FPTreeManager(const FPTreeManager<T>& manager);
 	FPTreeManager(FPTreeManager<T>&& manager) = default;
 	~FPTreeManager() = default;
@@ -31,9 +31,8 @@ private:
 	std::shared_ptr<FPTreeNode<T>> root;
 	HeaderTable<T> headerTable;
 	int supportCount;
-	const bool debug;
 
-	FPTreeManager(const bool debug);
+	FPTreeManager();
 	void generateFPTree(FileOrderedReader& reader, double supportFraction);
 	void deleteItem(std::shared_ptr<FPTreeNode<T>> node);
 	void mergeChildren(std::shared_ptr<FPTreeNode<T>> node, std::shared_ptr<FPTreeNode<T>> parent);
@@ -46,7 +45,7 @@ template class FPTreeManager<int>;
 //template class FPTreeManager<std::string>;
 
 template <typename T>
-std::ostream& operator << (std::ostream& out, const FPTreeManager<T>& node) {
+inline std::ostream& operator << (std::ostream& out, const FPTreeManager<T>& node) {
 	return out << (std::string) node;
 }
 

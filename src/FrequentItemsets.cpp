@@ -1,32 +1,36 @@
-#include <assert.h>
-#include <sstream>
+#include <cassert>
 #include <iostream>
+#include <omp.h>
 #include "FrequentItemsets.h"
-#include "Log.h"
+#include "Params.h"
 
 using namespace std;
 
 template <typename T>
-FrequentItemsets<T>::FrequentItemsets(FPTreeManager<T>& manager, const bool debug) : debug(debug) {
+FrequentItemsets<T>::FrequentItemsets(FPTreeManager<T>& manager) {
 	manager.pruneInfrequent();
-	this->frequentItemsets = move(this->computeFrequentItemsets(make_unique<FPTreeManager<T>>(manager)));
+	this->frequentItemsets = this->computeFrequentItemsets(make_unique<FPTreeManager<T>>(manager));
 }
 
 template <typename T>
-const shared_ptr<list<list<T>>> FrequentItemsets<T>::getFrequentItemsets() const {
+const list<list<T>>& FrequentItemsets<T>::getFrequentItemsets() const {
 	return this->frequentItemsets;
 }
 
 template <typename T>
-unique_ptr<list<list<T>>> FrequentItemsets<T>::computeFrequentItemsets(unique_ptr<FPTreeManager<T>> manager) {
+list<list<T>> FrequentItemsets<T>::computeFrequentItemsets(unique_ptr<FPTreeManager<T>> manager, int nThreads) {
 	DEBUG(cout << "Received FPTree manager: " << endl << (string) *manager;)
-	unique_ptr<list<list<T>>> frequentItemsets = make_unique<list<list<T>>>();
+	list<list<T>> frequentItemsets;
 	const int supportCount = manager->getSupportCount();
 	// Iterate over all the unique items that appeared in the itemset collection
-	for (typename map<T, HeaderEntry<T>>::const_iterator it = manager->headerTable.cbegin(); it != manager->headerTable.cend(); it++) {
-		const T& item = it->first;
+	vector<T> items = manager->headerTable.getItems();
+	// Define custom reduction to move partial result to the final result, splice move data
+	#pragma omp declare reduction (merge : list<list<T>> : omp_out.splice(omp_out.end(), omp_in))
+	#pragma omp parallel for schedule(dynamic) shared(items, manager, cout) default(none) num_threads(nThreads) reduction(merge: frequentItemsets)
+	for (typename vector<T>::iterator it = items.begin(); it != items.end(); it++) {
+		const T& item = *it;
 		// All the remaining items in the header table are frequent
-		frequentItemsets->emplace_back((initializer_list<T>) {item});
+		frequentItemsets.emplace_back((initializer_list<T>) {item});
 		DEBUG(cout << "Prefix element: " << item;)
 		unique_ptr<FPTreeManager<T>> prefixManager = manager->getPrefixTree(item);
 		DEBUG(cout << "Raw Prefix tree: " << endl << *prefixManager;)
@@ -41,15 +45,16 @@ unique_ptr<list<list<T>>> FrequentItemsets<T>::computeFrequentItemsets(unique_pt
 			continue;
 		}
 		DEBUG(cout << "Prefix tree pruned with support recomputed: " << endl << *prefixManager;)
-		unique_ptr<list<list<T>>> partialFrequentItemsets = move(this->computeFrequentItemsets(move(prefixManager)));
+		// Make only the top level items iteration parallel in order to limit the amount of threads
+		list<list<T>> partialFrequentItemsets = this->computeFrequentItemsets(move(prefixManager), 1);
 		// Prepend the current element to the results found
-		for (list<T>& partialItemset : *partialFrequentItemsets) {
+		for (list<T>& partialItemset : partialFrequentItemsets) {
 			partialItemset.push_front(item);
 		}
 		// Move partial result to the final result
-		frequentItemsets->splice(frequentItemsets->end(), *partialFrequentItemsets);
+		frequentItemsets.splice(frequentItemsets.end(), partialFrequentItemsets);
 	}
-	return move(frequentItemsets);
+	return frequentItemsets;
 }
 
 template <typename T>

@@ -1,22 +1,19 @@
 #include <deque>
 #include <iostream>
-#include <sstream>
 #include <iomanip>
-#include <assert.h>
+#include <cassert>
 #include "FPTreeManager.h"
-#include "Log.h"
+#include "Params.h"
 
 using namespace std;
 
 template <typename T>
-FPTreeManager<T>::FPTreeManager(FileOrderedReader& reader, const double supportFraction, const bool debug) : FPTreeManager(debug) {
+FPTreeManager<T>::FPTreeManager(FileOrderedReader& reader, const double supportFraction) : FPTreeManager() {
 	this->generateFPTree(reader, supportFraction);
 }
 
 template <typename T>
-FPTreeManager<T>::FPTreeManager(const FPTreeManager<T>& manager) : debug(manager.debug),
-																																	 headerTable(manager.debug),
-																																	 supportCount(manager.supportCount) {
+FPTreeManager<T>::FPTreeManager(const FPTreeManager<T>& manager) : supportCount(manager.supportCount) {
 	DEBUG(cout << "Deep copy of FPTreeManager requested");
 	this->root = manager.root->deepCopy(nullptr, this->headerTable);
 }
@@ -38,7 +35,7 @@ const int FPTreeManager<T>::getSupportCount() const {
 
 template <typename T>
 unique_ptr<FPTreeManager<T>> FPTreeManager<T>::getPrefixTree(const T& item) const {
-	unique_ptr<FPTreeManager<T>> newManager(new FPTreeManager<T>(this->debug));
+	unique_ptr<FPTreeManager<T>> newManager(new FPTreeManager<T>());
 	newManager->supportCount = this->supportCount;
 	newManager->root = this->root->getPrefixTree(nullptr, newManager->headerTable, item);
 	return move(newManager);
@@ -49,7 +46,6 @@ void FPTreeManager<T>::pruneInfrequent() {
 	for (typename map<T, HeaderEntry<T>>::const_iterator it = this->headerTable.cbegin(); it != this->headerTable.cend(); it++) {
 		if (it->second.getTotalFrequency() < this->supportCount) {
 			DEBUG(cout << "Deleting element " << *(it->second.getNode());)
-			//DEBUG(cout << "Deleting from: " << endl << (string) *this;)
 			this->deleteItem(it->second.getNode());
 		}
 	}
@@ -93,9 +89,7 @@ FPTreeManager<T>::operator string() const {
 }
 
 template <typename T>
-FPTreeManager<T>::FPTreeManager(const bool debug) : root(make_shared<FPTreeNode<T>>(-1, nullptr)),
-																										debug(debug),
-																										headerTable(debug) {
+FPTreeManager<T>::FPTreeManager() : root(make_shared<FPTreeNode<T>>(-1, nullptr)) {
 	// Marks the root node as such
 	this->root->frequency = -1;
 }
@@ -142,7 +136,8 @@ void FPTreeManager<T>::mergeChildren(shared_ptr<FPTreeNode<T>> node, shared_ptr<
 	parent->children.merge(node->children);
 	DEBUG(for (shared_ptr<FPTreeNode<T>> child : parent->children) {
 					assert(!child->parent.expired() && child->parent.lock() == parent);
-				})
+				}
+				cout << "The children of node " << *parent << " have valid pointers to their father and vice-versa")
 	if (!node->children.empty()) {
 		// Parent's and node's children has some common items, then the common item's children must be merged
 		for (shared_ptr <FPTreeNode<T>> child : node->children) {

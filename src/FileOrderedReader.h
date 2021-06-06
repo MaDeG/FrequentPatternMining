@@ -16,18 +16,23 @@
  */
 class FileOrderedReader {
 public:
-	FileOrderedReader(std::string input, bool debug = false);
+	FileOrderedReader(std::string input);
 	~FileOrderedReader() = default;
 	FileOrderedReader(FileOrderedReader&&) = default;
 	std::unique_ptr<std::list<int>> getNextOrderedTransaction();
+	const std::map<int, int>& getFrequencies() const;
+	operator std::string() const;
 
 private:
 	std::unique_ptr<std::ifstream> input;
 	std::map<int, int> frequencies;
-	const bool debug;
 
 	FileOrderedReader(const FileOrderedReader&) = default;
 	void computeFrequencies();
 };
+
+inline std::ostream& operator << (std::ostream& out, const FileOrderedReader& fileOrderedReader) {
+	return out << (std::string) fileOrderedReader;
+}
 
 #endif //FREQUENTPATTERNMINING_FILE_ORDERED_READER_H

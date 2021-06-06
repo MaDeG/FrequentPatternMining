@@ -1,15 +1,11 @@
-#include <assert.h>
+#include <cassert>
 #include <iostream>
 #include <sstream>
 #include <iomanip>
 #include "HeaderTable.h"
-#include "Log.h"
+#include "Params.h"
 
 using namespace std;
-
-template <typename T>
-HeaderTable<T>::HeaderTable(const bool debug) : debug(debug)
-{ }
 
 template <typename T>
 shared_ptr<FPTreeNode<T>> HeaderTable<T>::addNode(const shared_ptr<FPTreeNode<T>> node) {
@@ -89,15 +85,20 @@ void HeaderTable<T>::increaseFrequency(const T& item, const int addend) {
 
 template <typename T>
 void HeaderTable<T>::pruneInfrequent(int minSupportCount) {
-	if (debug) {
-		DEBUG(cout << "Header table size before pruning: " << this->headerTable.size() << ", minimum support count: " << minSupportCount;)
-	}
+	DEBUG(cout << "Header table size before pruning: " << this->headerTable.size() << ", minimum support count: " << minSupportCount;)
 	erase_if(this->headerTable, [minSupportCount](const pair<T, HeaderEntry<T>>& i) {
 		return i.second.totalFrequency < minSupportCount;
 	});
-	if (debug) {
-		DEBUG(cout << "Header table size after pruning: " << this->headerTable.size();)
+	DEBUG(cout << "Header table size after pruning: " << this->headerTable.size();)
+}
+
+template <typename T>
+vector<T> HeaderTable<T>::getItems() const {
+	vector<T> result;
+	for (const auto& [item, _] : this->headerTable) {
+		result.push_back(item);
 	}
+	return result; // RVO
 }
 
 template <typename T>
