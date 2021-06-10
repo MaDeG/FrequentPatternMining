@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
 	cout << "OpenMP maximum number of threads: " << Params::nThreads << endl;
 	Params::debug = debug;
 	DEBUG(cout << "Debug output enabled";)
-	//omp_set_nested(true); Used to test performance of nested parallelization in FrequentItemsets
+	omp_set_nested(true); // We would like to control nested parallelization manually
 
 	supportFraction /= 100;
 

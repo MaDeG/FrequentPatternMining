@@ -40,19 +40,19 @@ list<list<T>> FrequentItemsets<T>::computeFrequentItemsets(unique_ptr<FPTreeMana
 		prefixManager->removeItem(item);
 		DEBUG(cout << "Removed prefix item " << item << endl << *prefixManager;)
 		prefixManager->pruneInfrequent();
-		if (prefixManager->headerTable.empty()) {
+		if (!prefixManager->headerTable.empty()) {
+			DEBUG(cout << "Prefix tree pruned with support recomputed: " << endl << *prefixManager;)
+			// Make only the top level items iteration parallel in order to limit the amount of threads
+			list<list<T>> partialFrequentItemsets = this->computeFrequentItemsets(move(prefixManager), 1);
+			// Prepend the current element to the results found
+			for (list<T>& partialItemset : partialFrequentItemsets) {
+				partialItemset.push_front(item);
+			}
+			// Move partial result to the final result
+			frequentItemsets.splice(frequentItemsets.end(), partialFrequentItemsets);
+		} else {
 			DEBUG(cout << "Empty FPTree found for prefix " << item << ", skipping";)
-			continue;
 		}
-		DEBUG(cout << "Prefix tree pruned with support recomputed: " << endl << *prefixManager;)
-		// Make only the top level items iteration parallel in order to limit the amount of threads
-		list<list<T>> partialFrequentItemsets = this->computeFrequentItemsets(move(prefixManager), 1);
-		// Prepend the current element to the results found
-		for (list<T>& partialItemset : partialFrequentItemsets) {
-			partialItemset.push_front(item);
-		}
-		// Move partial result to the final result
-		frequentItemsets.splice(frequentItemsets.end(), partialFrequentItemsets);
 	}
 	return frequentItemsets;
 }

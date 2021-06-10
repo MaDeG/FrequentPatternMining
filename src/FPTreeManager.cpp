@@ -109,24 +109,29 @@ void FPTreeManager<T>::generateFPTree(FileOrderedReader& reader, double supportF
 
 template <typename T>
 void FPTreeManager<T>::deleteItem(shared_ptr<FPTreeNode<T>> node) {
-	// Assume that itemsets with duplicate items do not exists
+	// Assume that itemsets with duplicate items do not exists, hence every path from the root to a leaf contains unique items
+	assert(node->previous.expired());
+	this->headerTable.resetEntry(node->value);
 	for (; node; node = node->getNext().lock()) {
-		DEBUG(cout << "Removing item " << (string) *node << " from:" << endl << (string) *this;)
-		DEBUG(cout << "Header table: " << endl << (string) this->headerTable;)
-		assert(!node->parent.expired());
-		// Update children's parent
-		for (shared_ptr<FPTreeNode<T>> nephew : node->children) {
-			DEBUG(cout << "Set parent of " << *nephew << " to " << *(node->parent.lock());)
-			nephew->parent = node->parent;
+		#pragma omp task firstprivate(node) shared(cout) default(none)
+		{
+			DEBUG(cout << "Removing item " << *node << " from:" << endl << (string) *this;)
+			DEBUG(cout << "Header table for removing item: " << *node << endl << (string) this->headerTable;)
+			assert(!node->parent.expired());
+			// Update children's parent
+			for (shared_ptr<FPTreeNode<T>> nephew : node->children) {
+				DEBUG(cout << "Set parent of " << *nephew << " to " << *(node->parent.lock());)
+				nephew->parent = node->parent;
+			}
+			shared_ptr<FPTreeNode<T>> parent = node->parent.lock();
+			parent->children.erase(node);
+			this->mergeChildren(node, parent);
+			DEBUG(cout << "Result:" << endl << (string) *this;)
+			DEBUG(cout << "Result header table: " << endl << (string) this->headerTable;)
+			assert(!node->parent.expired());
 		}
-		shared_ptr<FPTreeNode<T>> parent = node->parent.lock();
-		parent->children.erase(node);
-		this->headerTable.removeNode(node);
-		this->mergeChildren(node, parent);
-		DEBUG(cout << "Result:" << endl << (string) *this;)
-		DEBUG(cout << "Result header table: " << endl << (string) this->headerTable;)
-		assert(!node->parent.expired());
 	}
+	#pragma omp taskwait
 }
 
 template <typename T>
@@ -137,7 +142,8 @@ void FPTreeManager<T>::mergeChildren(shared_ptr<FPTreeNode<T>> node, shared_ptr<
 	DEBUG(for (shared_ptr<FPTreeNode<T>> child : parent->children) {
 					assert(!child->parent.expired() && child->parent.lock() == parent);
 				}
-				cout << "The children of node " << *parent << " have valid pointers to their father and vice-versa")
+				cout << "The children of node " << *parent << " have valid pointers to their father and vice-versa"
+	)
 	if (!node->children.empty()) {
 		// Parent's and node's children has some common items, then the common item's children must be merged
 		for (shared_ptr <FPTreeNode<T>> child : node->children) {
@@ -147,15 +153,8 @@ void FPTreeManager<T>::mergeChildren(shared_ptr<FPTreeNode<T>> node, shared_ptr<
 			uncle->incrementFrequency(child->frequency);
 			child->frequency = 0;
 			// Remove child from the Header Table and disconnect it from its next and previous
+			#pragma omp critical
 			this->headerTable.removeNode(child);
-			/*// Take care of the next and previous pointers of uncle in order to detach it from the list and reinsert in as the new head
-			if (!uncle->previous.expired()) {
-				uncle->previous.lock()->next = uncle->next;
-			}
-			if (!uncle->next.expired()) {
-				uncle->next.lock()->previous = uncle->previous;
-			}
-			shared_ptr<FPTreeNode<T>> previous = this->headerTable.addNode(uncle);*/
 			assert(!uncle->previous.expired() || this->headerTable.getNode(uncle->value) == uncle);
 			// Since a merge is needed, adopt all the children of child by uncle
 			for (shared_ptr<FPTreeNode<T>> nephew : child->children) {

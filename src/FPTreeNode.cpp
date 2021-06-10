@@ -1,7 +1,6 @@
 #include <memory>
-#include <sstream>
 #include <iostream>
-#include <assert.h>
+#include <cassert>
 #include "FPTreeNode.h"
 #include "HeaderTable.h"
 #include "Params.h"

@@ -52,7 +52,7 @@ template <typename T>
 bool HeaderTable<T>::removeNode(shared_ptr<FPTreeNode<T>> node) {
 	typename map<T, HeaderEntry<T>>::iterator it = this->headerTable.find(node->getValue());
 	if (it == this->headerTable.end()) {
-		DEBUG(cout << "The node " << *node << " was already not present in the header table";)
+		DEBUG(cout << "The node " << *node << " is already not present in the header table";)
 		return false;
 	}
 	assert(it->second.node);
@@ -71,6 +71,19 @@ bool HeaderTable<T>::removeNode(shared_ptr<FPTreeNode<T>> node) {
 		node->getNext().lock()->setPrevious(node->getPrevious());
 	}
 	return true;
+}
+
+template <typename T>
+shared_ptr<FPTreeNode<T>> HeaderTable<T>::resetEntry(const T& item) {
+	typename map<T, HeaderEntry<T>>::iterator it = this->headerTable.find(item);
+	if (it == this->headerTable.end()) {
+		DEBUG(cout << "The item " << item << " is not in the header table";)
+		return nullptr;
+	}
+	shared_ptr<FPTreeNode<T>> entry = it->second.node;
+	it->second.totalFrequency = 0;
+	it->second.node.reset();
+	return move(entry);
 }
 
 template <typename T>
