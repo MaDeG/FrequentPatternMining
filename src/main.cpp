@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
 							throw boost::program_options::validation_error(boost::program_options::validation_error::invalid_option_value, "nThreads", to_string(value));
 						}
 					}), "Number of threads to use, use 0 to use as many as the amount of cores, 1 for sequential execution, or a custom number")
-				("skipOutputFrequent,o", boost::program_options::bool_switch(&skipOutputFrequent)->default_value(false), "Disables the output of the Frequent Itemsets once computed")
+				("skipOutputFrequent,o", boost::program_options::bool_switch(&skipOutputFrequent)->default_value(false), "Disables the output of the Frequent Itemsets once computed, only their count will be printed, used during performance evaluation")
 				("debug,d", boost::program_options::bool_switch(&debug)->default_value(false), "Enables debug outputs");
 		boost::program_options::variables_map vm;
 		boost::program_options::store(boost::program_options::parse_command_line(argc, argv, desc), vm);
@@ -45,16 +45,19 @@ int main(int argc, char *argv[]) {
 	cout << "Input: " << input << endl;
 	cout << "Support fraction: " << supportFraction << "%" << endl;
 	Params::nThreads = nThreads > 0 ? nThreads : omp_get_max_threads();
+	omp_set_num_threads(Params::nThreads);
 	cout << "OpenMP maximum number of threads: " << Params::nThreads << endl;
 	Params::debug = debug;
-	DEBUG(cout << "Debug output enabled";)
+	DEBUG(cout << "Debug output enabled")
 	omp_set_nested(true); // We would like to control nested parallelization manually
 
 	supportFraction /= 100;
 
 	cout << "Reading input file and computing item frequencies..." << endl;
 	FileOrderedReader reader(input);
-	DEBUG(cout << "Computed frequencies:" << endl << (string) reader)
+	if (!skipOutputFrequent) {
+		cout << "Computed frequencies:" << endl << (string) reader << endl;
+	}
 
 	cout << "Computing Frequent Itemsets with support bigger than " << supportFraction * 100 << "%..." << endl;
 	FPTreeManager<int> manager(reader, supportFraction);

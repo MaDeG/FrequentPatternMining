@@ -52,6 +52,7 @@ void FPTreeNode<T>::incrementFrequency() {
 template <typename T>
 void FPTreeNode<T>::incrementFrequency(const int addend) {
 	assert(addend >= 0);
+	#pragma omp atomic
 	this->frequency += addend;
 }
 

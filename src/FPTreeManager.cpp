@@ -104,7 +104,7 @@ void FPTreeManager<T>::generateFPTree(FileOrderedReader& reader, double supportF
 	}
 	// Knowing the number of the input itemsets I can determine the required count to be frequent given the required supportFraction percentage
 	this->supportCount = itemsetCount * supportFraction;
-	DEBUG(cout << "Total itemsets parsed: " << itemsetCount << ", support count: " << this->supportCount;)
+	DEBUG(cout << "Total itemsets parsed: " << itemsetCount << ", support count: " << this->supportCount)
 }
 
 template <typename T>
@@ -112,26 +112,27 @@ void FPTreeManager<T>::deleteItem(shared_ptr<FPTreeNode<T>> node) {
 	// Assume that itemsets with duplicate items do not exists, hence every path from the root to a leaf contains unique items
 	assert(node->previous.expired());
 	this->headerTable.resetEntry(node->value);
+	#pragma omp parallel shared(cout, node) default(none)
+	#pragma omp single
 	for (; node; node = node->getNext().lock()) {
 		#pragma omp task firstprivate(node) shared(cout) default(none)
 		{
-			DEBUG(cout << "Removing item " << *node << " from:" << endl << (string) *this;)
-			DEBUG(cout << "Header table for removing item: " << *node << endl << (string) this->headerTable;)
+			DEBUG(cout << "Removing item " << *node << " from:" << endl << (string) *this)
+			DEBUG(cout << "Header table for removing item: " << *node << endl << (string) this->headerTable)
 			assert(!node->parent.expired());
 			// Update children's parent
 			for (shared_ptr<FPTreeNode<T>> nephew : node->children) {
-				DEBUG(cout << "Set parent of " << *nephew << " to " << *(node->parent.lock());)
+				DEBUG(cout << "Set parent of " << *nephew << " to " << *(node->parent.lock()))
 				nephew->parent = node->parent;
 			}
 			shared_ptr<FPTreeNode<T>> parent = node->parent.lock();
 			parent->children.erase(node);
 			this->mergeChildren(node, parent);
 			DEBUG(cout << "Result:" << endl << (string) *this;)
-			DEBUG(cout << "Result header table: " << endl << (string) this->headerTable;)
+			DEBUG(cout << "Result header table: " << endl << (string) this->headerTable)
 			assert(!node->parent.expired());
 		}
 	}
-	#pragma omp taskwait
 }
 
 template <typename T>

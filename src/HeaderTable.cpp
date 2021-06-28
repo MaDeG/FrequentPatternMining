@@ -93,6 +93,7 @@ void HeaderTable<T>::increaseFrequency(const T& item, const int addend) {
 	typename map<T, HeaderEntry<T>>::iterator it = this->headerTable.find(item);
 	assert(it != this->headerTable.cend());
 	assert(it->second.totalFrequency >= 0);
+	#pragma omp atomic
 	it->second.totalFrequency += addend;
 }
 

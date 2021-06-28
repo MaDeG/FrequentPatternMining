@@ -1,6 +1,5 @@
 #include <cassert>
 #include <iostream>
-#include <omp.h>
 #include "FrequentItemsets.h"
 #include "Params.h"
 
@@ -19,14 +18,21 @@ const list<list<T>>& FrequentItemsets<T>::getFrequentItemsets() const {
 
 template <typename T>
 list<list<T>> FrequentItemsets<T>::computeFrequentItemsets(unique_ptr<FPTreeManager<T>> manager, int nThreads) {
-	DEBUG(cout << "Received FPTree manager: " << endl << (string) *manager;)
+	DEBUG(cout << "Received FPTree manager: " << endl << (string) *manager)
 	list<list<T>> frequentItemsets;
 	const int supportCount = manager->getSupportCount();
 	// Iterate over all the unique items that appeared in the itemset collection
 	vector<T> items = manager->headerTable.getItems();
+	if (items.empty()) {
+		// Prevents a segfault in the OpenMP handling of empty items
+		return frequentItemsets;
+	}
 	// Define custom reduction to move partial result to the final result, splice move data
 	#pragma omp declare reduction (merge : list<list<T>> : omp_out.splice(omp_out.end(), omp_in))
-	#pragma omp parallel for schedule(dynamic) shared(items, manager, cout) default(none) num_threads(nThreads) reduction(merge: frequentItemsets)
+	#pragma omp parallel shared(frequentItemsets, items, manager, cout) default(none)
+	#pragma omp single
+	#pragma omp taskloop shared(items, manager, cout) default(none) reduction(merge: frequentItemsets)
+	//#pragma omp parallel for schedule(dynamic) shared(items, manager, cout) default(none) num_threads(nThreads) reduction(merge: frequentItemsets)
 	for (typename vector<T>::iterator it = items.begin(); it != items.end(); it++) {
 		const T& item = *it;
 		// All the remaining items in the header table are frequent
@@ -61,17 +67,21 @@ template <typename T>
 void FrequentItemsets<T>::recomputeSupport(const T& item, HeaderTable<T>& headerTable) {
 	shared_ptr<FPTreeNode<T>> node = headerTable.getNode(item);
 	assert(node);
+	#pragma omp parallel shared(node, headerTable) default(none)
+	#pragma omp single
 	do {
-		int frequency = node->getFrequency();
-		if (frequency == 0) {
-			continue;
-		}
-		assert(frequency > 0);
-		// Walk to the root and recompute frequencies
-		for (shared_ptr<FPTreeNode<T>> i = node->getParent().lock(); i->getFrequency() >= 0; i = i->getParent().lock()) {
-			i->incrementFrequency(frequency);
-			// Increment the total frequency for these items
-			headerTable.increaseFrequency(i->getValue(), frequency);
+		#pragma omp task firstprivate(node) shared(headerTable) default(none)
+		{
+			int frequency = node->getFrequency();
+			assert(frequency >= 0);
+			if (frequency == 0) {
+				// Walk to the root and recompute frequencies
+				for (shared_ptr<FPTreeNode<T>> i = node->getParent().lock(); i->getFrequency() >= 0; i = i->getParent().lock()) {
+					i->incrementFrequency(frequency);
+					// Increment the total frequency for these items
+					headerTable.increaseFrequency(i->getValue(), frequency);
+				}
+			}
 		}
 	} while ((node = node->getNext().lock()));
 }
