@@ -4,6 +4,7 @@
 #include <list>
 #include <set>
 #include <memory>
+#include <omp.h>
 
 template <typename T> class HeaderTable;
 template <typename T> class FPTreeManager;
@@ -14,7 +15,7 @@ class FPTreeNode : public std::enable_shared_from_this<FPTreeNode<T>> {
 public:
 	FPTreeNode(const T& value, std::shared_ptr<FPTreeNode<T>> parent);
 	FPTreeNode(FPTreeNode<T>&& node) = delete;
-	~FPTreeNode() = default;
+	~FPTreeNode();
 	std::shared_ptr<FPTreeNode<T>> getptr();
 	const T& getValue() const;
 	int getFrequency() const;
@@ -25,7 +26,7 @@ public:
 	void incrementFrequency(const int addend);
 	void setNext(std::weak_ptr<FPTreeNode<T>> next);
 	void setPrevious(std::weak_ptr<FPTreeNode<T>> previous);
-	void addSequence(std::unique_ptr<std::list<T>> values, HeaderTable<T>& _headerTable);
+	void addSequence(std::list<T>& values, HeaderTable<T>& headerTable);
 	std::shared_ptr<FPTreeNode<T>> getChildren(const T& item) const;
 	operator std::string() const;
 
@@ -37,6 +38,7 @@ private:
 	std::weak_ptr<FPTreeNode<T>> next;
 	std::weak_ptr<FPTreeNode<T>> previous;
 	std::set<std::shared_ptr<FPTreeNode<T>>, decltype(FPTreeNode<T>::nodeComparator)*> children;
+	omp_lock_t lock;
 
 	FPTreeNode(const FPTreeNode<T>& node);
 	std::shared_ptr<FPTreeNode<T>> deepCopy(std::shared_ptr<FPTreeNode<T>> parent, HeaderTable<T>& newHeaderTable) const;

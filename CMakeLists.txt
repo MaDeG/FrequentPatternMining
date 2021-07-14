@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 project(FrequentPatternMining)
 set(CMAKE_CXX_STANDARD 20)
-#set(CMAKE_SOURCE_DIR ${CMAKE_BINARY_DIR}/src)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
@@ -21,5 +20,5 @@ add_executable(FrequentPatternMining src/FileOrderedReader.cpp src/FileOrderedRe
                                      src/HeaderEntry.cpp src/HeaderEntry.h
                                      src/FrequentItemsets.cpp src/FrequentItemsets.h
                                      src/Params.h
-                                     src/main.cpp)
+                                     src/main.cpp src/Utils.cpp)
 target_link_libraries(FrequentPatternMining Boost::program_options OpenMP::OpenMP_CXX)

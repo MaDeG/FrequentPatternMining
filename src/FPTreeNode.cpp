@@ -12,7 +12,14 @@ FPTreeNode<T>::FPTreeNode(const T& value, shared_ptr<FPTreeNode<T>> parent) : fr
                                                                               value(value),
                                                                               parent(parent),
                                                                               children(FPTreeNode<T>::nodeComparator)
-{ }
+{
+	omp_init_lock(&this->lock);
+}
+
+template <typename T>
+FPTreeNode<T>::~FPTreeNode() {
+	omp_destroy_lock(&this->lock);
+}
 
 template <typename T>
 shared_ptr<FPTreeNode<T>> FPTreeNode<T>::getptr() {
@@ -46,6 +53,7 @@ const weak_ptr<FPTreeNode<T>> FPTreeNode<T>::getParent() const {
 
 template <typename T>
 void FPTreeNode<T>::incrementFrequency() {
+	#pragma omp atomic
 	this->frequency++;
 }
 
@@ -67,12 +75,13 @@ void FPTreeNode<T>::setPrevious(weak_ptr<FPTreeNode<T>> previous) {
 }
 
 template<typename T>
-void FPTreeNode<T>::addSequence(unique_ptr<list<T>> values, HeaderTable<T>& headerTable) {
-	if (values->empty()) {
+void FPTreeNode<T>::addSequence(list<T>& values, HeaderTable<T>& headerTable) {
+	if (values.empty()) {
 		return;
 	}
-	const T value = values->front();
-	values->pop_front();
+	const T value = values.front();
+	values.pop_front();
+	omp_set_lock(&this->lock);
 	// Binary search among the children
 	typename set<shared_ptr<FPTreeNode<T>>>::iterator childrenIt = lower_bound(this->children.begin(),
 																																						 this->children.end(),
@@ -83,14 +92,15 @@ void FPTreeNode<T>::addSequence(unique_ptr<list<T>> values, HeaderTable<T>& head
 		assert(childrenIt == this->children.cend() || (*childrenIt)->value > value);
 		// Need to create a new node
 		shared_ptr<FPTreeNode<T>> newNode = make_shared<FPTreeNode<T>>(value, this->getptr());
-		DEBUG(cout << "Create new node: " << *newNode;)
+		//DEBUG(cout << "Create new node: " << *newNode;)
 		childrenIt = this->children.insert(childrenIt, move(newNode));
 		headerTable.addNode(*childrenIt);
 	}
+	omp_unset_lock(&this->lock);
 	// Add new item and/or update count in the header table
 	headerTable.increaseFrequency(value, 1);
 	(*childrenIt)->incrementFrequency();
-	(*childrenIt)->addSequence(move(values), headerTable);
+	(*childrenIt)->addSequence(values, headerTable);
 }
 
 template <typename T>

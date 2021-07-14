@@ -10,6 +10,8 @@
 template <typename T>
 class HeaderTable {
 public:
+	HeaderTable();
+	~HeaderTable();
 	std::shared_ptr<FPTreeNode<T>> addNode(const std::shared_ptr<FPTreeNode<T>> node);
 	std::shared_ptr<FPTreeNode<T>> getNode(const T& item) const;
 	std::shared_ptr<FPTreeNode<T>> removeNode(const T& item);
@@ -25,6 +27,7 @@ public:
 
 private:
 	std::map<T, HeaderEntry<T>> headerTable;
+	omp_lock_t lock;
 };
 
 template class HeaderTable<int>;

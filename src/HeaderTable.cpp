@@ -8,17 +8,26 @@
 using namespace std;
 
 template <typename T>
+HeaderTable<T>::HeaderTable() {
+	omp_init_lock(&this->lock);
+}
+
+template <typename T>
+HeaderTable<T>::~HeaderTable() {
+	omp_destroy_lock(&this->lock);
+}
+
+template <typename T>
 shared_ptr<FPTreeNode<T>> HeaderTable<T>::addNode(const shared_ptr<FPTreeNode<T>> node) {
 	shared_ptr<FPTreeNode<T>> previous;
+	omp_set_lock(&this->lock);
 	typename map<T, HeaderEntry<T>>::iterator lb = this->headerTable.lower_bound(node->getValue());
 	// Checks whether we are performing an add or an update
 	if (lb != this->headerTable.cend() && !(this->headerTable.key_comp()(node->getValue(), lb->first))) {
 		lb->second.totalFrequency += node->getFrequency();
 		previous = node;
-		if (lb->second.node == previous) {
-			// In case node has already been inserted avoid to create cycles
-			return previous;
-		}
+		// If true the node has already been inserted and its insertion would create a cycle
+		assert(lb->second.node != previous);
 		swap(lb->second.node, previous);
 		// Update next and previous fields in the nodes
 		previous->setPrevious(node);
@@ -30,28 +39,36 @@ shared_ptr<FPTreeNode<T>> HeaderTable<T>::addNode(const shared_ptr<FPTreeNode<T>
 		node->setNext(weak_ptr<FPTreeNode<T>>());
 		node->setPrevious(weak_ptr<FPTreeNode<T>>());
 	}
+	omp_unset_lock(&this->lock);
 	return previous;
 }
 
 template <typename T>
 shared_ptr<FPTreeNode<T>> HeaderTable<T>::getNode(const T& item) const {
+	omp_set_lock(const_cast<omp_lock_t*> (&this->lock));
 	typename map<T, HeaderEntry<T>>::const_iterator it = this->headerTable.find(item);
-	return it != this->headerTable.cend() ? it->second.node : nullptr;
+	shared_ptr<FPTreeNode<T>> node = it != this->headerTable.cend() ? it->second.node : nullptr;
+	omp_unset_lock(const_cast<omp_lock_t*> (&this->lock));
+	return move(node);
 }
 
 template <typename T>
 shared_ptr<FPTreeNode<T>> HeaderTable<T>::removeNode(const T& item) {
+	omp_set_lock(&this->lock);
 	typename map<T, HeaderEntry<T>>::iterator it = this->headerTable.find(item);
 	assert(it != this->headerTable.end());
 	shared_ptr<FPTreeNode<T>> entry = it->second.node;
 	this->headerTable.erase(it);
+	omp_unset_lock(&this->lock);
 	return move(entry);
 }
 
 template <typename T>
 bool HeaderTable<T>::removeNode(shared_ptr<FPTreeNode<T>> node) {
+	omp_set_lock(&this->lock);
 	typename map<T, HeaderEntry<T>>::iterator it = this->headerTable.find(node->getValue());
 	if (it == this->headerTable.end()) {
+		omp_unset_lock(&this->lock);
 		DEBUG(cout << "The node " << *node << " is already not present in the header table";)
 		return false;
 	}
@@ -70,19 +87,23 @@ bool HeaderTable<T>::removeNode(shared_ptr<FPTreeNode<T>> node) {
 	if (!node->getNext().expired()) {
 		node->getNext().lock()->setPrevious(node->getPrevious());
 	}
+	omp_unset_lock(&this->lock);
 	return true;
 }
 
 template <typename T>
 shared_ptr<FPTreeNode<T>> HeaderTable<T>::resetEntry(const T& item) {
+	omp_set_lock(&this->lock);
 	typename map<T, HeaderEntry<T>>::iterator it = this->headerTable.find(item);
 	if (it == this->headerTable.end()) {
+		omp_unset_lock(&this->lock);
 		DEBUG(cout << "The item " << item << " is not in the header table";)
 		return nullptr;
 	}
 	shared_ptr<FPTreeNode<T>> entry = it->second.node;
 	it->second.totalFrequency = 0;
 	it->second.node.reset();
+	omp_unset_lock(&this->lock);
 	return move(entry);
 }
 
@@ -90,28 +111,33 @@ template <typename T>
 void HeaderTable<T>::increaseFrequency(const T& item, const int addend) {
 	// Addend can be 0 if a parent of this item has been chosen as prefix previously
 	assert(addend >= 0);
+	omp_set_lock(&this->lock);
 	typename map<T, HeaderEntry<T>>::iterator it = this->headerTable.find(item);
 	assert(it != this->headerTable.cend());
 	assert(it->second.totalFrequency >= 0);
-	#pragma omp atomic
 	it->second.totalFrequency += addend;
+	omp_unset_lock(&this->lock);
 }
 
 template <typename T>
 void HeaderTable<T>::pruneInfrequent(int minSupportCount) {
-	DEBUG(cout << "Header table size before pruning: " << this->headerTable.size() << ", minimum support count: " << minSupportCount;)
+	DEBUG(cout << "Header table size before pruning: " << this->headerTable.size() << ", minimum support count: " << minSupportCount)
+	omp_set_lock(&this->lock);
 	erase_if(this->headerTable, [minSupportCount](const pair<T, HeaderEntry<T>>& i) {
 		return i.second.totalFrequency < minSupportCount;
 	});
-	DEBUG(cout << "Header table size after pruning: " << this->headerTable.size();)
+	omp_unset_lock(&this->lock);
+	DEBUG(cout << "Header table size after pruning: " << this->headerTable.size())
 }
 
 template <typename T>
 vector<T> HeaderTable<T>::getItems() const {
 	vector<T> result;
+	omp_set_lock(const_cast<omp_lock_t*> (&this->lock));
 	for (const auto& [item, _] : this->headerTable) {
 		result.push_back(item);
 	}
+	omp_unset_lock(const_cast<omp_lock_t*> (&this->lock));
 	return result; // RVO
 }
 
@@ -134,6 +160,7 @@ template <typename T>
 HeaderTable<T>::operator string() const {
 	ostringstream outStream;
 	outStream << setw(10) << "Key" << " | " << setw(38) << "Value(First - Total frequency)" << " | " << setw(15) << "Chain" << endl;
+	omp_set_lock(const_cast<omp_lock_t*> (&this->lock));
 	for (const typename map<T, HeaderEntry<T>>::value_type& entry : this->headerTable) {
 		outStream << setw(10) << entry.first << " | ";
 		if (!entry.second.node) {
@@ -146,5 +173,6 @@ HeaderTable<T>::operator string() const {
 		}
 		outStream << endl;
 	}
+	omp_unset_lock(const_cast<omp_lock_t*> (&this->lock));
 	return outStream.str();
 }

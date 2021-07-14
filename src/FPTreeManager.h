@@ -35,6 +35,8 @@ private:
 	FPTreeManager();
 	void generateFPTree(FileOrderedReader& reader, double supportFraction);
 	void deleteItem(std::shared_ptr<FPTreeNode<T>> node);
+	void deleteItemParallel(std::shared_ptr<FPTreeNode<T>> node);
+	void deleteItemSequential(std::shared_ptr<FPTreeNode<T>> node);
 	void mergeChildren(std::shared_ptr<FPTreeNode<T>> node, std::shared_ptr<FPTreeNode<T>> parent);
 };
 

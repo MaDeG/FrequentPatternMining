@@ -16,6 +16,7 @@
 struct Params {
 	inline static bool debug;
 	inline static int nThreads;
+	inline static bool parallelDelete;
 };
 
 #endif //FREQUENTPATTERNMINING_PARAMS_H

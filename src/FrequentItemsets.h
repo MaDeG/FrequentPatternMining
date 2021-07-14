@@ -14,7 +14,7 @@ public:
 private:
 	std::list<std::list<T>> frequentItemsets;
 
-	std::list<std::list<T>> computeFrequentItemsets(std::unique_ptr<FPTreeManager<T>> manager, int nThreads = Params::nThreads);
+	std::list<std::list<T>> computeFrequentItemsets(std::unique_ptr<FPTreeManager<T>> manager);
 	void recomputeSupport(const T& item, HeaderTable<T>& headerTable);
 };
 

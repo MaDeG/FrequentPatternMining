@@ -19,12 +19,12 @@ public:
 	FileOrderedReader(std::string input);
 	~FileOrderedReader() = default;
 	FileOrderedReader(FileOrderedReader&&) = default;
-	std::unique_ptr<std::list<int>> getNextOrderedTransaction();
-	const std::map<int, int>& getFrequencies() const;
+	std::list<int> getNextOrderedTransaction();
+	bool isEOF() const;
 	operator std::string() const;
 
 private:
-	std::unique_ptr<std::ifstream> input;
+	std::ifstream input;
 	std::map<int, int> frequencies;
 
 	FileOrderedReader(const FileOrderedReader&) = default;

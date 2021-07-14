@@ -9,17 +9,17 @@ FrequentPatternMining
 │   README.md 				This file
 │   CMakeLists.txt    	
 │
-└───src						Folder containing the project C++ sources
+└───src                                 Folder containing the project C++ sources
 │   │   *.h *.cpp
 │   │   ...
-└───docs					Folder containing the Project Report and related documents
+└───docs                                Folder containing the Project Report and related documents
 │   │   Report.md
 │   │   ...
 │   
 └───datasets				Part of the datasets used to test the code
 │   │   ...
 │
-└───bin						Where the compiled binary can be found
+└───bin                                 Where the compiled binary can be found
 	│   FrequentPatternMining
 ```
 
