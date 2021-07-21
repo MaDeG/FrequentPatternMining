@@ -15,7 +15,7 @@ FPTreeManager<T>::FPTreeManager(FileOrderedReader& reader, const double supportF
 
 template <typename T>
 FPTreeManager<T>::FPTreeManager(const FPTreeManager<T>& manager) : supportCount(manager.supportCount) {
-	DEBUG(cout << "Deep copy of FPTreeManager requested");
+	//DEBUG(cout << "Deep copy of FPTreeManager requested");
 	this->root = manager.root->deepCopy(nullptr, this->headerTable);
 }
 
@@ -44,13 +44,16 @@ unique_ptr<FPTreeManager<T>> FPTreeManager<T>::getPrefixTree(const T& item) cons
 
 template <typename T>
 void FPTreeManager<T>::pruneInfrequent() {
-	for (typename map<T, HeaderEntry<T>>::const_iterator it = this->headerTable.cbegin(); it != this->headerTable.cend(); it++) {
-		if (it->second.getTotalFrequency() < this->supportCount) {
-			DEBUG(cout << "Deleting element " << *(it->second.getNode());)
-			this->deleteItem(it->second.getNode());
-		}
+	DEBUG(cout << "Before pruning infrequent items with support " << this->supportCount);
+	DEBUG(cout << "FPTree:" << endl << *this);
+	DEBUG(cout << "Header Table:" << endl << this->headerTable);
+	list<shared_ptr<FPTreeNode<T>>> deleted = this->headerTable.pruneInfrequent(this->supportCount);
+	for (shared_ptr<FPTreeNode<T>>& node : deleted) {
+		assert(node);
+		DEBUG(cout << "Deleting element " << *node)
+		this->deleteItem(node);
+		DEBUG(cout << "Resulting FP-Tree:" << endl << *this);
 	}
-	this->headerTable.pruneInfrequent(this->supportCount);
 }
 
 template <typename T>
@@ -75,12 +78,12 @@ FPTreeManager<T>::operator string() const {
 		nodes.pop_front();
 		levels.pop_front();
 		for (int i = 0; i < level - 1; i++) {
-			outStream << setw(25) << "| ";
+			outStream << setw(5) << "| ";
 		}
 		if (node->getFrequency() >= 0) {
-			outStream << setw(25) << "|-";
+			outStream << setw(5) << "|-";
 		}
-		outStream << setfill('-') << setw(25) << *node << setfill(' ') << endl;
+		outStream << setfill('-') << setw(5) << *node << setfill(' ') << endl;
 		for (shared_ptr<FPTreeNode<int>> i : node->children) {
 			nodes.push_front(i.get());
 			levels.push_front(level + 1);
@@ -134,12 +137,16 @@ void FPTreeManager<T>::deleteItemParallel(shared_ptr<FPTreeNode<T>> node) {
 	assert(node->previous.expired());
 	this->headerTable.resetEntry(node->value);
 	vector<shared_ptr<FPTreeNode<T>>> nodes = listToVector(node);
-	#pragma omp parallel for schedule(dynamic) shared(nodes, cout) default(none) if(Params::parallelDelete) //if(nodes.size() > 100) //num_threads(Params::nThreads)
-	//#pragma omp parallel shared(nodes, cout) default(none)
-	//#pragma omp single
-	//#pragma omp taskloop shared(nodes, cout) default(none) if(Params::parallelDelete) //grainsize(1) //if(nodes.size() > 100) //num_tasks(nodes.size() / Params::nThreads > 200 ? Params::nThreads : 1)
+	//#pragma omp parallel for schedule(dynamic) shared(nodes, cout) default(none) //if(nodes.size() > 100) //num_threads(Params::nThreads)
+	#pragma omp parallel shared(nodes, cout) default(none)
+	#pragma omp single
+	#pragma omp taskloop shared(nodes, cout) default(none) //if(Params::parallelDelete) //grainsize(1) //if(nodes.size() > 100) //num_tasks(nodes.size() / Params::nThreads > 200 ? Params::nThreads : 1)
 	for (typename vector<shared_ptr<FPTreeNode<T>>>::iterator it = nodes.begin(); it != nodes.end(); it++) {
 		shared_ptr<FPTreeNode<T>>& node = *it;
+		if (node->getParent().expired()) {
+			DEBUG(cout << "Skipping node " << *node << " because its parent is expired and hence it has already been removed from the tree")
+			continue;
+		}
 		DEBUG(cout << "Removing item " << *node << " from:" << endl << (string) *this)
 		DEBUG(cout << "Header table for removing item: " << *node << endl << (string) this->headerTable)
 		assert(!node->parent.expired());
@@ -162,22 +169,31 @@ void FPTreeManager<T>::deleteItemSequential(shared_ptr<FPTreeNode<T>> node) {
 	// Assume that itemsets with duplicate items do not exists, hence every path from the root to a leaf contains unique items
 	assert(node->previous.expired());
 	this->headerTable.resetEntry(node->value);
-	for (; node; node = node->getNext().lock()) {
+	shared_ptr<FPTreeNode<T>> next;
+	do {
+		// It is necessary to lock the next node in order to prevent its deletion
+		next = node->getNext().lock();
+		if (node->getParent().expired()) {
+			DEBUG(cout << "Skipping node " << *node << " because its parent is expired and hence it has already been removed from the tree")
+			node = next;
+			continue;
+		}
 		DEBUG(cout << "Removing item " << *node << " from:" << endl << (string) *this)
-		DEBUG(cout << "Header table for removing item: " << *node << endl << (string) this->headerTable)
+		//DEBUG(cout << "Header table before removing item: " << *node << endl << (string) this->headerTable)
 		assert(!node->parent.expired());
 		// Update children's parent
 		for (const shared_ptr<FPTreeNode<T>>& nephew : node->children) {
-			DEBUG(cout << "Set parent of " << *nephew << " to " << *(node->parent.lock()))
+			//DEBUG(cout << "Set parent of " << *nephew << " to " << *(node->parent.lock()))
 			nephew->parent = node->parent;
 		}
 		shared_ptr<FPTreeNode<T>> parent = node->parent.lock();
 		parent->children.erase(node);
 		this->mergeChildren(node, parent);
 		DEBUG(cout << "Result:" << endl << (string) *this)
-		DEBUG(cout << "Result header table: " << endl << (string) this->headerTable)
+		//DEBUG(cout << "Result header table: " << endl << (string) this->headerTable)
 		assert(!node->parent.expired());
-	}
+		node = next;
+	} while(next);
 }
 
 template <typename T>
@@ -200,7 +216,7 @@ void FPTreeManager<T>::mergeChildren(shared_ptr<FPTreeNode<T>> node, shared_ptr<
 			child->frequency = 0;
 			// Remove child from the Header Table and disconnect it from its next and previous
 			this->headerTable.removeNode(child);
-			assert(!uncle->previous.expired() || this->headerTable.getNode(uncle->value) == uncle);
+			//assert(!uncle->previous.expired() || this->headerTable.getNode(uncle->value) == uncle);
 			// Since a merge is needed, adopt all the children of child by uncle
 			for (shared_ptr<FPTreeNode<T>> nephew : child->children) {
 				nephew->parent = uncle;

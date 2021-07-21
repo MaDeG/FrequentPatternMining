@@ -21,7 +21,7 @@ public:
 	int getFrequency() const;
 	const std::weak_ptr<FPTreeNode<T>> getNext() const;
 	const std::weak_ptr<FPTreeNode<T>> getPrevious() const;
-	const std::weak_ptr<FPTreeNode<T>> getParent() const;
+	std::weak_ptr<FPTreeNode<T>> getParent() const; // TODO: Rechange to const
 	void incrementFrequency();
 	void incrementFrequency(const int addend);
 	void setNext(std::weak_ptr<FPTreeNode<T>> next);

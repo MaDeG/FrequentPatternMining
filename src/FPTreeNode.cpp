@@ -47,7 +47,7 @@ const weak_ptr<FPTreeNode<T>> FPTreeNode<T>::getPrevious() const {
 }
 
 template <typename T>
-const weak_ptr<FPTreeNode<T>> FPTreeNode<T>::getParent() const {
+weak_ptr<FPTreeNode<T>> FPTreeNode<T>::getParent() const {
 	return this->parent;
 }
 
@@ -131,7 +131,7 @@ FPTreeNode<T>::FPTreeNode(const FPTreeNode<T>& node) : value(node.value),
 
 template <typename T>
 shared_ptr<FPTreeNode<T>> FPTreeNode<T>::deepCopy(shared_ptr<FPTreeNode<T>> parent, HeaderTable<T>& newHeaderTable) const {
-	DEBUG(cout << "Performing deep copy on " << *this;)
+	//DEBUG(cout << "Performing deep copy on " << *this;)
 	// Set value and frequency
 	shared_ptr<FPTreeNode<T>> newNode(new FPTreeNode<T>(*this));
 	// Set parent

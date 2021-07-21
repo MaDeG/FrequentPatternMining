@@ -23,6 +23,7 @@ const list<list<T>>& FrequentItemsets<T>::getFrequentItemsets() const {
 template <typename T>
 list<list<T>> FrequentItemsets<T>::computeFrequentItemsets(unique_ptr<FPTreeManager<T>> manager) {
 	DEBUG(cout << "Received FPTree manager: " << endl << (string) *manager)
+	DEBUG(cout << "Received Header Table: " << endl << (string) manager->headerTable)
 	list<list<T>> frequentItemsets;
 	const int supportCount = manager->getSupportCount();
 	// Iterate over all the unique items that appeared in the itemset collection

@@ -67,26 +67,26 @@ template <typename T>
 bool HeaderTable<T>::removeNode(shared_ptr<FPTreeNode<T>> node) {
 	omp_set_lock(&this->lock);
 	typename map<T, HeaderEntry<T>>::iterator it = this->headerTable.find(node->getValue());
-	if (it == this->headerTable.end()) {
-		omp_unset_lock(&this->lock);
-		DEBUG(cout << "The node " << *node << " is already not present in the header table";)
-		return false;
+	if (it != this->headerTable.end()) {
+		assert(it->second.node);
+		if (node->getPrevious().expired()) {
+			assert(node == it->second.node);
+			it->second.node = node->getNext().lock();
+		}
+		it->second.totalFrequency -= node->getFrequency();
+		// Do not delete header table entries here since somebody may be iterating over them
+		assert(it->second.totalFrequency >= 0);
+		assert(it->second.node || it->second.totalFrequency == 0);
 	}
-	assert(it->second.node);
-	if (node->getPrevious().expired()) {
-		assert(node == it->second.node);
-		it->second.node = node->getNext().lock();
-	}
-	it->second.totalFrequency -= node->getFrequency();
-	// Do not delete header table entries here since somebody may be iterating over them
-	assert(it->second.totalFrequency >= 0);
-	assert(it->second.node || it->second.totalFrequency == 0);
 	if (!node->getPrevious().expired()) {
 		node->getPrevious().lock()->setNext(node->getNext());
+		// Modify previous of the next item only if the deleted one is not the head of the list
+		if (!node->getNext().expired()) {
+			node->getNext().lock()->setPrevious(node->getPrevious());
+		}
 	}
-	if (!node->getNext().expired()) {
-		node->getNext().lock()->setPrevious(node->getPrevious());
-	}
+	// Needed to be able to maintain a valid list of nodes whose heads are returned by pruneInfrequent
+	node->getParent().reset();
 	omp_unset_lock(&this->lock);
 	return true;
 }
@@ -120,14 +120,21 @@ void HeaderTable<T>::increaseFrequency(const T& item, const int addend) {
 }
 
 template <typename T>
-void HeaderTable<T>::pruneInfrequent(int minSupportCount) {
+list<shared_ptr<FPTreeNode<T>>> HeaderTable<T>::pruneInfrequent(int minSupportCount) {
+	// Making them weak_ptr it is then possible to delete only the nodes that are not expired, hence still referenced by a parent
+	list<shared_ptr<FPTreeNode<T>>> deleted;
 	DEBUG(cout << "Header table size before pruning: " << this->headerTable.size() << ", minimum support count: " << minSupportCount)
 	omp_set_lock(&this->lock);
-	erase_if(this->headerTable, [minSupportCount](const pair<T, HeaderEntry<T>>& i) {
-		return i.second.totalFrequency < minSupportCount;
+	erase_if(this->headerTable, [minSupportCount, &deleted](const pair<T, HeaderEntry<T>>& i) {
+		if (i.second.totalFrequency < minSupportCount) {
+			deleted.push_back(move(i.second.node));
+			return true;
+		}
+		return false;
 	});
 	omp_unset_lock(&this->lock);
 	DEBUG(cout << "Header table size after pruning: " << this->headerTable.size())
+	return deleted; // RVO
 }
 
 template <typename T>
@@ -139,16 +146,6 @@ vector<T> HeaderTable<T>::getItems() const {
 	}
 	omp_unset_lock(const_cast<omp_lock_t*> (&this->lock));
 	return result; // RVO
-}
-
-template <typename T>
-typename map<T, HeaderEntry<T>>::const_iterator HeaderTable<T>::cbegin() {
-	return this->headerTable.cbegin();
-}
-
-template <typename T>
-typename map<T, HeaderEntry<T>>::const_iterator HeaderTable<T>::cend() {
-	return this->headerTable.cend();
 }
 
 template <typename T>
