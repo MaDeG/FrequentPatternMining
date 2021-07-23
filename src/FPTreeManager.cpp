@@ -114,7 +114,7 @@ void FPTreeManager<T>::generateFPTree(FileOrderedReader& reader, double supportF
 		}
 	} while(!reader.isEOF());
 	#pragma omp taskwait
-	// Knowing the number of the input itemsets I can determine the required count to be frequent given the required supportFraction percentage
+	// Knowing the number of the input itemsets it is possible to determine the required count to be frequent given the required supportFraction percentage
 	this->supportCount = itemsetCount * supportFraction;
 	DEBUG(cout << "Total itemsets parsed: " << itemsetCount << ", support count: " << this->supportCount)
 }
@@ -134,10 +134,10 @@ void FPTreeManager<T>::deleteItemParallel(shared_ptr<FPTreeNode<T>> node) {
 	assert(node->previous.expired());
 	this->headerTable.resetEntry(node->value);
 	vector<shared_ptr<FPTreeNode<T>>> nodes = listToVector(node);
-	#pragma omp parallel for schedule(dynamic) shared(nodes, cout) default(none) if(Params::parallelDelete) //if(nodes.size() > 100) //num_threads(Params::nThreads)
+	//#pragma omp parallel for schedule(dynamic) shared(nodes, cout) default(none) if(Params::parallelDelete) //if(nodes.size() > 100) //num_threads(Params::nThreads)
 	//#pragma omp parallel shared(nodes, cout) default(none)
 	//#pragma omp single
-	//#pragma omp taskloop shared(nodes, cout) default(none) if(Params::parallelDelete) //grainsize(1) //if(nodes.size() > 100) //num_tasks(nodes.size() / Params::nThreads > 200 ? Params::nThreads : 1)
+	#pragma omp taskloop shared(nodes, cout) default(none) if(Params::parallelDelete) //grainsize(1) //if(nodes.size() > 100)
 	for (typename vector<shared_ptr<FPTreeNode<T>>>::iterator it = nodes.begin(); it != nodes.end(); it++) {
 		shared_ptr<FPTreeNode<T>>& node = *it;
 		DEBUG(cout << "Removing item " << *node << " from:" << endl << (string) *this)

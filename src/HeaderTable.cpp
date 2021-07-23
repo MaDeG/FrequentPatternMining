@@ -108,15 +108,16 @@ shared_ptr<FPTreeNode<T>> HeaderTable<T>::resetEntry(const T& item) {
 }
 
 template <typename T>
-void HeaderTable<T>::increaseFrequency(const T& item, const int addend) {
+int HeaderTable<T>::increaseFrequency(const T& item, const int addend) {
 	// Addend can be 0 if a parent of this item has been chosen as prefix previously
 	assert(addend >= 0);
 	omp_set_lock(&this->lock);
 	typename map<T, HeaderEntry<T>>::iterator it = this->headerTable.find(item);
 	assert(it != this->headerTable.cend());
 	assert(it->second.totalFrequency >= 0);
-	it->second.totalFrequency += addend;
+	int total = (it->second.totalFrequency += addend);
 	omp_unset_lock(&this->lock);
+	return total;
 }
 
 template <typename T>

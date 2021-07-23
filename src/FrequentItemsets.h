@@ -15,7 +15,7 @@ private:
 	std::list<std::list<T>> frequentItemsets;
 
 	std::list<std::list<T>> computeFrequentItemsets(std::unique_ptr<FPTreeManager<T>> manager);
-	void recomputeSupport(const T& item, HeaderTable<T>& headerTable);
+	bool recomputeSupport(const T& item, HeaderTable<T>& headerTable, const int supportCount);
 };
 
 template class FrequentItemsets<int>;

@@ -43,29 +43,33 @@ list<list<T>> FrequentItemsets<T>::computeFrequentItemsets(unique_ptr<FPTreeMana
 		unique_ptr<FPTreeManager<T>> prefixManager = manager->getPrefixTree(item);
 		DEBUG(cout << "Raw Prefix tree: " << endl << *prefixManager);
 		// After recomputing support we will not need the chosen prefix's nodes anymore
-		this->recomputeSupport(item, prefixManager->headerTable);
+		if (!this->recomputeSupport(item, prefixManager->headerTable, prefixManager->supportCount)) {
+			DEBUG(cout << "No frequent item found, skipping prefix " << item);
+			continue;
+		}
 		DEBUG(cout << "Recomputed support:" << endl << *prefixManager);
 		prefixManager->removeItem(item);
 		DEBUG(cout << "Removed prefix item " << item << endl << *prefixManager);
 		prefixManager->pruneInfrequent();
-		if (!prefixManager->headerTable.empty()) {
-			DEBUG(cout << "Prefix tree pruned with support recomputed: " << endl << *prefixManager);
-			list<list<T>> partialFrequentItemsets = this->computeFrequentItemsets(move(prefixManager));
-			// Prepend the current element to the results found
-			for (list<T>& partialItemset : partialFrequentItemsets) {
-				partialItemset.push_front(item);
-			}
-			// Move partial result to the final result
-			frequentItemsets.splice(frequentItemsets.end(), partialFrequentItemsets);
-		} else {
+		if (prefixManager->headerTable.empty()) {
 			DEBUG(cout << "Empty FPTree found for prefix " << item << ", skipping");
+			continue;
 		}
+		DEBUG(cout << "Prefix tree pruned with support recomputed: " << endl << *prefixManager);
+		list<list<T>> partialFrequentItemsets = this->computeFrequentItemsets(move(prefixManager));
+		// Prepend the current element to the results found
+		for (list<T>& partialItemset : partialFrequentItemsets) {
+			partialItemset.push_front(item);
+		}
+		// Move partial result to the final result
+		frequentItemsets.splice(frequentItemsets.end(), partialFrequentItemsets);
 	}
 	return frequentItemsets;
 }
 
 template <typename T>
-void FrequentItemsets<T>::recomputeSupport(const T& item, HeaderTable<T>& headerTable) {
+bool FrequentItemsets<T>::recomputeSupport(const T& item, HeaderTable<T>& headerTable, const int supportCount) {
+	bool atLeastOneFrequent = false;
 	shared_ptr<FPTreeNode<T>> node = headerTable.getNode(item);
 	//vector<shared_ptr<FPTreeNode<T>>> nodes = listToVector(node);
 	assert(node);
@@ -87,8 +91,11 @@ void FrequentItemsets<T>::recomputeSupport(const T& item, HeaderTable<T>& header
 			for (shared_ptr<FPTreeNode<T>> i = node->getParent().lock(); i->getFrequency() >= 0; i = i->getParent().lock()) {
 				i->incrementFrequency(frequency);
 				// Increment the total frequency for these items
-				headerTable.increaseFrequency(i->getValue(), frequency);
+				if (headerTable.increaseFrequency(i->getValue(), frequency) >= supportCount) {
+					atLeastOneFrequent = true;
+				}
 			}
 		}
 	} while ((node = node->getNext().lock()));
+	return atLeastOneFrequent;
 }
