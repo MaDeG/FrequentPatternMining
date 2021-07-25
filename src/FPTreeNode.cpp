@@ -149,6 +149,10 @@ shared_ptr<FPTreeNode<T>> FPTreeNode<T>::deepCopy(shared_ptr<FPTreeNode<T>> pare
 
 template <typename T>
 shared_ptr<FPTreeNode<T>> FPTreeNode<T>::getPrefixTree(shared_ptr<FPTreeNode<T>> parent, HeaderTable<T>& newHeaderTable, const T& item) const {
+	if (this->children.empty() && this->value != item) {
+		// Base case to trim a branch when it is known that it does not contain the prefix item
+		return nullptr;
+	}
 	// Set value and frequency
 	shared_ptr<FPTreeNode<T>> newNode(new FPTreeNode<T>(*this));
 	if (this->value != item && this->frequency >= 0) {
@@ -163,9 +167,15 @@ shared_ptr<FPTreeNode<T>> FPTreeNode<T>::getPrefixTree(shared_ptr<FPTreeNode<T>>
 		newNode->next = previous;
 		newNode->previous.reset();
 	}
-	// Create new children
-	for (shared_ptr<FPTreeNode<T>> child : this->children) {
-		newNode->children.insert(child.get()->getPrefixTree(newNode, newHeaderTable, item));
+	// If we are arrived at a prefix item then it does not make sense to go on since all of its descendants cannot be frequent
+	if (this->value != item) {
+		// Create new children
+		for (shared_ptr<FPTreeNode<T>> child : this->children) {
+			shared_ptr<FPTreeNode<T>> newChild = child->getPrefixTree(newNode, newHeaderTable, item);
+			if (newChild) {
+				newNode->children.insert(move(newChild));
+			}
+		}
 	}
 	return newNode;
 }

@@ -8,11 +8,13 @@ using namespace std;
 
 template <typename T>
 FrequentItemsets<T>::FrequentItemsets(FPTreeManager<T>& manager) {
-	manager.pruneInfrequent();
 	// Create threads here in order to keep under control their quantity
 	#pragma omp parallel shared(manager, cout) default(none)
 	#pragma omp single
-	this->frequentItemsets = this->computeFrequentItemsets(make_unique<FPTreeManager<T>>(manager));
+	{
+		manager.pruneInfrequent();
+		this->frequentItemsets = this->computeFrequentItemsets(make_unique<FPTreeManager<T>>(manager));
+	}
 }
 
 template <typename T>

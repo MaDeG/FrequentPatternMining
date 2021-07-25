@@ -75,12 +75,12 @@ FPTreeManager<T>::operator string() const {
 		nodes.pop_front();
 		levels.pop_front();
 		for (int i = 0; i < level - 1; i++) {
-			outStream << setw(25) << "| ";
+			outStream << setw(5) << "| ";
 		}
 		if (node->getFrequency() >= 0) {
-			outStream << setw(25) << "|-";
+			outStream << setw(5) << "|-";
 		}
-		outStream << setfill('-') << setw(25) << *node << setfill(' ') << endl;
+		outStream << setfill('-') << setw(5) << *node << setfill(' ') << endl;
 		for (shared_ptr<FPTreeNode<int>> i : node->children) {
 			nodes.push_front(i.get());
 			levels.push_front(level + 1);

@@ -40,7 +40,7 @@ shared_ptr<FPTreeNode<T>> HeaderTable<T>::addNode(const shared_ptr<FPTreeNode<T>
 		node->setPrevious(weak_ptr<FPTreeNode<T>>());
 	}
 	omp_unset_lock(&this->lock);
-	return previous;
+	return move(previous);
 }
 
 template <typename T>
