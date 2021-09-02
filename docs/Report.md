@@ -45,46 +45,6 @@ which have been proven to be very effective for representing a compressed versio
 In an FP-Tree each transaction is represented by a path from the root to a leaf, moreover a header table is used in order to keep
 track of the first node for a certain item, which is then linked to all the subsequent ones in a list fashion.
 
-[//]: #![FP-Tree](pics/fp-tree-final.png)
-
-In order to build the tree, it is first necessary to determine the frequency of each item and then sort them in each input itemset
-by decreasing frequency. This is fundamental to ensure that the generated FP-Tree is as compact (and hence efficient) as possible.
-Moreover, it has been enforced the uniqueness of each item in input, if an itemset with repeated items would be received then
-the frequency of the repeated item would contribute only by 1, and the repetition would be deleted during the input parsing phase. 
-
-Once the FP-tree is constructed the recursive, divide-and-conquer `FP-growth` algorithm is used to enumerate all frequent itemsets.
-This algorithm can be summarized as follows:
-
-```c++
-list<list<Item>> FP-growth(FP-Tree tree, int minsup) {
-  list<list<Item>> frequentItemsets
-  for (item : tree.headerTable) {
-    frequentItemsets.append(item)
-    newTree = computePrefixTree(tree, item)
-    recomputeSupport(newTree)
-    removeItem(newTree, item)
-    pruneInfrequent(newTree, minsup)
-    partialFrequentItemsets = FP-growth(newTree, minsup)
-    for (itemset : partialFrequentItemsets) {
-      itemset.insertFront(item)
-    }
-    frequentItemsets.append(partialFrequentItemsets)
-  }
-  return frequentItemsets;
-}
-```
-
-This recursive algorithm iterates over all the items in the header table associated to the FP-Tree received and for each of them:
-
-- Creates a copy of the header table and FP-Tree with all the items' frequencies set to 0, but the ones relative to the chosen prefix
-- Recomputes the support of all the tree iterating over the prefix item list (thanks to the header table, and their organization
-as list), and for each of them follows the path to the root node and increase each node on the way by the frequency of the item.
-- Remove the item chosen as prefix, since we are now taking it into consideration, and we assume the uniqueness of each item.
-- Prune the items considered infrequent (since nodes' frequencies has been recomputed) in order to reduce the memory usage
-  during the further recursions.
-- Perform a recursive call to `FP-growth` using the prefix tree generated for the chosen item.
-- For each frequent itemset returned by the recursive call, append the chosen prefix.
-
 ### First sequential implementation
 The first approach to the sequential algorithm has been tried simplifying the canonical algorithm described above avoiding pruning
 the FP-Tree between recursive calls, and hence without calling the functions `removeItem` and `pruneInfrequent`, but instead,
@@ -182,7 +142,7 @@ each of them.
 
 ### Third parallel implementation
 After many experimental testing, it has been realised that some introduced parallel implementations have actually decreased performances
-on certain datasets. For example the manual tasks creation during the support recomputation has proven to have very little if not a negative
+on certain datasets. For example the manual tasks creation during the support re-computation has proven to have very little if not a negative
 effect on performances and hence it has been removed.
 
 Moreover, the parallel implementation of `deleteItem` has proved to be quite debatable, since it is very helpful
@@ -228,3 +188,27 @@ Hence, in the case where many short item lists needs to be pruned from the tree 
 It has been tested how performance increases varying the amount of threads, and, as expected, we can always see a performance improvement
 increasing the amount of threads. Up to the point where the number of CPU cores is reached, from then on we can see a stabilization that
 eventually leads to a performance decrease due to the context switch overhead.
+Below it is possible to see a plot of the execution time (in seconds) increasing the amount of threads.
+These tests have been performed on an 8 core machine.
+
+![Varying execution time based on the amount of threads](pics/plot.png "Varying execution time")
+
+As we can see the lowest execution time corresponds to the usage of 8 threads (which match the number of CPU cores).
+
+The final average measured Speed-Up is 1.5, using 8 threads, which is much lower than the expected result. This because the algorithm
+parallelization contains a lot of constraints to ensure data structures integrity, since many operations cannot be parallelized
+completely.
+
+## Future improvements
+
+The final parallel version has been analyzed using `perf` in order to read CPU performance counters during various common runs.
+
+It has been noticed that `LLC-load-misses:u`, expressed as a percentage the number of loads that miss in the last level cache
+(typically the L3 for modern Intel chips), can be quite high (around 30%), especially when using low supports.
+This means that the usage of cache could be improved, especially in all those cases when chain of pointers has been used, since
+they do not take advantage of the principles of spatial and temporal locality.
+
+Instead, it would be interesting to investigate different algorithms that would allow making threads cooperate for the cache
+usage, since now they are all trying to load different sub-trees of the same parent.
+Moreover, the used data structures are not always optimal to do this, since an FP-Tree is a collection of pointers and the whole
+tree cannot always all fit in memory.
